@@ -6,15 +6,14 @@ import {
   VIRTUAL_STORAGE,
   VIRTUAL_QUEUE,
   VIRTUAL_ENTRY,
-  VIRTUAL_ROUTES,
 } from "./constants.js";
 import { generateDbModule } from "./virtual/db.js";
 import { generateKvModule } from "./virtual/kv.js";
 import { generateStorageModule } from "./virtual/storage.js";
 import { generateQueueModule } from "./virtual/queue.js";
-import { scanRoutes, scanCrons, scanQueues } from "./scanner.js";
+import { findRoutesEntry, scanCrons, scanQueues } from "./scanner.js";
 import { generateWorkerEntry } from "./codegen.js";
-import type { MakeVoidConfig, ScannedRoute } from "./types.js";
+import type { MakeVoidConfig } from "./types.js";
 
 type ModuleGenerator = (config: MakeVoidConfig, isDev: boolean) => string;
 
@@ -40,42 +39,34 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
     resolveId(id: string) {
       if (MODULE_GENERATORS[id]) return "\0" + id;
-      if (id === VIRTUAL_ENTRY || id === VIRTUAL_ROUTES) return "\0" + id;
+      if (id === VIRTUAL_ENTRY) return "\0" + id;
       return null;
     },
 
     load(id: string) {
       if (!id.startsWith("\0make-void/")) return null;
 
-      const moduleId = id.slice(1); // strip \0
+      const moduleId = id.slice(1);
 
       if (MODULE_GENERATORS[moduleId]) {
         return MODULE_GENERATORS[moduleId](config, isDev);
       }
 
-      const routesDir = config.routesDir ?? "routes";
-      const cronsDir = config.cronsDir ?? "crons";
-      const queuesDir = config.queuesDir ?? "queues";
-
       if (moduleId === VIRTUAL_ENTRY) {
-        const routes = scanRoutes(root, routesDir);
-        const crons = scanCrons(root, cronsDir);
-        const queues = scanQueues(root, queuesDir);
-        return generateWorkerEntry(routes, crons, queues);
-      }
-
-      if (moduleId === VIRTUAL_ROUTES) {
-        const routes = scanRoutes(root, routesDir);
-        return `export default ${JSON.stringify(routes, null, 2)};`;
+        const routesEntry = findRoutesEntry(root, config.routesEntry);
+        if (!routesEntry) {
+          throw new Error(
+            "[make-void] No routes entry found. Create routes.ts or routes/index.ts"
+          );
+        }
+        const crons = scanCrons(root, config.cronsDir ?? "crons");
+        const queues = scanQueues(root, config.queuesDir ?? "queues");
+        return generateWorkerEntry("./" + routesEntry, crons, queues);
       }
 
       return null;
     },
   };
-}
-
-function filePathToUrlPattern(route: ScannedRoute): URLPattern {
-  return new URLPattern({ pathname: route.urlPattern });
 }
 
 export function createDevServerPlugin(config: MakeVoidConfig): Plugin {
@@ -89,75 +80,51 @@ export function createDevServerPlugin(config: MakeVoidConfig): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
-      const routesDir = config.routesDir ?? "routes";
-
-      // Register middleware BEFORE Vite's built-in middleware
-      // so we intercept API routes before Vite's 404 handler
       server.middlewares.use(async (req, res, next) => {
+        const routesEntry = findRoutesEntry(root, config.routesEntry);
+        if (!routesEntry) return next();
+
+        try {
+          const mod = await server.ssrLoadModule(
+            path.resolve(root, routesEntry)
+          );
+          const app = mod.default;
+          if (!app || typeof app.fetch !== "function") return next();
+
+          // Build a Web Request from the Node.js IncomingMessage
           const url = new URL(req.url!, `http://${req.headers.host}`);
           const method = req.method!.toLowerCase();
+          const body =
+            method !== "get" && method !== "head"
+              ? await readBody(req)
+              : undefined;
 
-          // Scan routes on each request in dev (fast enough, enables HMR)
-          const routes = scanRoutes(root, routesDir);
+          const webRequest = new Request(url.toString(), {
+            method: req.method,
+            headers: Object.entries(req.headers).reduce((h, [k, v]) => {
+              if (v) h.set(k, Array.isArray(v) ? v.join(", ") : v);
+              return h;
+            }, new Headers()),
+            body,
+          });
 
-          for (const route of routes) {
-            const pattern = filePathToUrlPattern(route);
-            const match = pattern.exec(url);
+          // Call the Hono app's fetch handler
+          const response: Response = await app.fetch(webRequest);
 
-            if (match) {
-              try {
-                // Use Vite's ssrLoadModule to load the route handler
-                // This resolves virtual modules (make-void/db etc.) through our plugin
-                const mod = await server.ssrLoadModule(route.filePath);
-                const handler = mod[method];
+          // If Hono returned 404, let Vite handle it (for static files, HMR, etc.)
+          if (response.status === 404) return next();
 
-                if (!handler) {
-                  res.statusCode = 405;
-                  res.end("Method Not Allowed");
-                  return;
-                }
-
-                // Build a Web Request from the Node.js IncomingMessage
-                const body = method !== "get" && method !== "head"
-                  ? await readBody(req)
-                  : undefined;
-
-                const webRequest = new Request(url.toString(), {
-                  method: req.method,
-                  headers: Object.entries(req.headers).reduce((h, [k, v]) => {
-                    if (v) h.set(k, Array.isArray(v) ? v.join(", ") : v);
-                    return h;
-                  }, new Headers()),
-                  body,
-                });
-
-                const routeCtx = {
-                  request: webRequest,
-                  params: match.pathname.groups as Record<string, string>,
-                  url,
-                };
-
-                const response: Response = await handler(routeCtx);
-
-                // Write Web Response back to Node.js response
-                res.statusCode = response.status;
-                response.headers.forEach((value, key) => {
-                  res.setHeader(key, value);
-                });
-                const responseBody = await response.text();
-                res.end(responseBody);
-                return;
-              } catch (err) {
-                console.error("[make-void] Route error:", err);
-                res.statusCode = 500;
-                res.end("Internal Server Error");
-                return;
-              }
-            }
-          }
-
+          res.statusCode = response.status;
+          response.headers.forEach((value, key) => {
+            res.setHeader(key, value);
+          });
+          const responseBody = await response.arrayBuffer();
+          res.end(Buffer.from(responseBody));
+        } catch (err) {
+          console.error("[make-void] Error:", err);
           next();
-        });
+        }
+      });
     },
   };
 }
@@ -182,39 +149,32 @@ export function createScannerPlugin(config: MakeVoidConfig): Plugin {
     },
 
     configureServer(server) {
-      const dirs = [
-        config.routesDir ?? "routes",
-        config.cronsDir ?? "crons",
-        config.queuesDir ?? "queues",
-      ].map((d) => path.resolve(root, d));
+      const dirs = [config.cronsDir ?? "crons", config.queuesDir ?? "queues"]
+        .map((d) => path.resolve(root, d))
+        .filter((d) => {
+          try {
+            return require("node:fs").existsSync(d);
+          } catch {
+            return false;
+          }
+        });
 
       for (const dir of dirs) {
         server.watcher.add(dir);
       }
 
-      server.watcher.on("all", (_event, filePath) => {
-        const isWatched = dirs.some((dir) => filePath.startsWith(dir));
-        if (!isWatched) return;
-
-        for (const id of ["\0" + VIRTUAL_ENTRY, "\0" + VIRTUAL_ROUTES]) {
-          const mod = server.moduleGraph.getModuleById(id);
-          if (mod) server.moduleGraph.invalidateModule(mod);
-        }
-        server.ws.send({ type: "full-reload" });
-      });
+      // Also watch the routes entry
+      const routesEntry = findRoutesEntry(root, config.routesEntry);
+      if (routesEntry) {
+        server.watcher.add(path.resolve(root, routesEntry));
+      }
     },
   };
 }
 
 export function createAliasPlugin(config: MakeVoidConfig): Plugin {
-  let root: string;
-
   return {
     name: "make-void:alias",
-
-    configResolved(cfg: ResolvedConfig) {
-      root = cfg.root;
-    },
 
     config() {
       return {

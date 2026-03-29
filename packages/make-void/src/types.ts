@@ -1,6 +1,6 @@
 export interface MakeVoidConfig {
-  /** Directory containing route handlers. Default: "routes" */
-  routesDir?: string;
+  /** Path to the Hono app entry. Default: "routes.ts" or "routes/index.ts" */
+  routesEntry?: string;
   /** Directory containing cron handlers. Default: "crons" */
   cronsDir?: string;
   /** Directory containing queue handlers. Default: "queues" */
@@ -14,12 +14,6 @@ export interface MakeVoidConfig {
     r2?: string;
     queue?: string;
   };
-}
-
-export interface RouteContext {
-  request: Request;
-  params: Record<string, string>;
-  url: URL;
 }
 
 export interface CronContext {
@@ -39,14 +33,6 @@ export interface QueueContext<T = unknown> {
     ackAll(): void;
     retryAll(): void;
   };
-}
-
-export interface ScannedRoute {
-  filePath: string;
-  urlPattern: string;
-  importPath: string;
-  isDynamic: boolean;
-  params: string[];
 }
 
 export interface ScannedCron {

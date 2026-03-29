@@ -5,6 +5,10 @@
     "dev": "pnpm --filter example dev"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "workerd"]
-  }
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  },
+  "packageManager": "pnpm@10.33.0"
 }

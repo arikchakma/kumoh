@@ -9,7 +9,7 @@ import {
 } from "./plugin.js";
 import type { MakeVoidConfig } from "./types.js";
 
-export type { MakeVoidConfig, RouteContext, CronContext, QueueContext } from "./types.js";
+export type { MakeVoidConfig, CronContext, QueueContext } from "./types.js";
 
 function loadVoidJson(root: string): Partial<MakeVoidConfig> {
   const configPath = path.resolve(root, "void.json");
@@ -17,7 +17,7 @@ function loadVoidJson(root: string): Partial<MakeVoidConfig> {
 
   const raw = JSON.parse(readFileSync(configPath, "utf-8"));
   return {
-    routesDir: raw.routes,
+    routesEntry: raw.routes,
     cronsDir: raw.crons,
     queuesDir: raw.queues,
     schemaPath: raw.schema,

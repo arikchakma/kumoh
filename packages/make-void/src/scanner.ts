@@ -1,42 +1,36 @@
 import fg from "fast-glob";
 import path from "node:path";
-import type { ScannedRoute, ScannedCron, ScannedQueue } from "./types.js";
+import { existsSync } from "node:fs";
+import type { ScannedCron, ScannedQueue } from "./types.js";
 
-export function scanRoutes(root: string, routesDir: string): ScannedRoute[] {
-  const absDir = path.resolve(root, routesDir);
-  const files = fg.sync("**/*.{ts,js}", { cwd: absDir });
+/**
+ * Find the Hono app entry: routes.ts, routes/index.ts, or configured path.
+ */
+export function findRoutesEntry(root: string, routesEntry?: string): string | null {
+  if (routesEntry) {
+    const abs = path.resolve(root, routesEntry);
+    return existsSync(abs) ? routesEntry : null;
+  }
 
-  return files
-    .filter((f) => !path.basename(f).startsWith("_"))
-    .map((file) => {
-      const relativePath = file
-        .replace(/\.(ts|js)$/, "")
-        .replace(/\/index$/, "")
-        .replace(/^index$/, "");
+  const candidates = [
+    "routes.ts",
+    "routes.js",
+    "routes/index.ts",
+    "routes/index.js",
+  ];
 
-      const urlPath = relativePath
-        .replace(/\[\.\.\.(\w+)\]/g, "*")
-        .replace(/\[(\w+)\]/g, ":$1");
+  for (const candidate of candidates) {
+    if (existsSync(path.resolve(root, candidate))) {
+      return candidate;
+    }
+  }
 
-      const urlPattern = "/" + urlPath;
-      const params = [...urlPath.matchAll(/:(\w+)/g)].map((m) => m[1]);
-
-      return {
-        filePath: path.resolve(absDir, file),
-        urlPattern: urlPattern === "/" ? "/" : urlPattern,
-        importPath: "./" + path.posix.join(routesDir, file),
-        isDynamic: params.length > 0 || urlPath.includes("*"),
-        params,
-      };
-    })
-    .sort((a, b) => {
-      if (a.isDynamic !== b.isDynamic) return a.isDynamic ? 1 : -1;
-      return a.urlPattern.localeCompare(b.urlPattern);
-    });
+  return null;
 }
 
 export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   const absDir = path.resolve(root, cronsDir);
+  if (!existsSync(absDir)) return [];
   const files = fg.sync("**/*.{ts,js}", { cwd: absDir });
 
   return files
@@ -50,6 +44,7 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
 
 export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
   const absDir = path.resolve(root, queuesDir);
+  if (!existsSync(absDir)) return [];
   const files = fg.sync("**/*.{ts,js}", { cwd: absDir });
 
   return files

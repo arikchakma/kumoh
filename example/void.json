@@ -6,7 +6,7 @@
     "r2": "BUCKET",
     "queue": "EMAIL_QUEUE"
   },
-  "routes": "routes",
+  "routes": "routes/index.ts",
   "crons": "crons",
   "queues": "queues",
   "schema": "db/schema.ts"

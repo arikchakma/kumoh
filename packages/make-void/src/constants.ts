@@ -8,4 +8,3 @@ export const VIRTUAL_KV = "make-void/kv";
 export const VIRTUAL_STORAGE = "make-void/storage";
 export const VIRTUAL_QUEUE = "make-void/queue";
 export const VIRTUAL_ENTRY = "make-void/entry";
-export const VIRTUAL_ROUTES = "make-void/routes";
