@@ -111,8 +111,15 @@ export function createDevServerPlugin(config: MakeVoidConfig): Plugin {
           // Call the Hono app's fetch handler
           const response: Response = await app.fetch(webRequest);
 
-          // If Hono returned 404, let Vite handle it (for static files, HMR, etc.)
-          if (response.status === 404) return next();
+          // Only fall through to Vite when Hono has no matching route
+          // (its default 404 has no content-type). If a handler explicitly
+          // returned 404 (e.g. c.json({error}, 404)), that's a real response.
+          if (
+            response.status === 404 &&
+            !response.headers.get("content-type")
+          ) {
+            return next();
+          }
 
           res.statusCode = response.status;
           response.headers.forEach((value, key) => {

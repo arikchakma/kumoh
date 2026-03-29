@@ -23,7 +23,7 @@ app.get("/api/users/:id", async (c) => {
   const result = await sql`SELECT id, name, email FROM users WHERE id = ${id}`;
 
   if (!result.results.length) {
-    return c.json({ error: "User not found" }, 404);
+    return c.json({ error: `User not found: ${id}` }, 404);
   }
   return c.json(result.results[0]);
 });
