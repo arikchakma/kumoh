@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types"],
+    "paths": {
+      "@schema": ["./db/schema.ts"]
+    }
+  },
+  "include": ["routes", "db", "crons", "queues", "middleware", "*.ts"]
+}

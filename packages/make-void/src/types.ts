@@ -1,0 +1,62 @@
+export interface MakeVoidConfig {
+  /** Directory containing route handlers. Default: "routes" */
+  routesDir?: string;
+  /** Directory containing cron handlers. Default: "crons" */
+  cronsDir?: string;
+  /** Directory containing queue handlers. Default: "queues" */
+  queuesDir?: string;
+  /** Path to DB schema file. Default: "db/schema.ts" */
+  schemaPath?: string;
+  /** Binding names from wrangler.toml */
+  bindings?: {
+    d1?: string;
+    kv?: string;
+    r2?: string;
+    queue?: string;
+  };
+}
+
+export interface RouteContext {
+  request: Request;
+  params: Record<string, string>;
+  url: URL;
+}
+
+export interface CronContext {
+  controller: { cron: string; scheduledTime: number; noRetry(): void };
+}
+
+export interface QueueContext<T = unknown> {
+  batch: {
+    readonly queue: string;
+    readonly messages: ReadonlyArray<{
+      readonly id: string;
+      readonly timestamp: Date;
+      readonly body: T;
+      ack(): void;
+      retry(): void;
+    }>;
+    ackAll(): void;
+    retryAll(): void;
+  };
+}
+
+export interface ScannedRoute {
+  filePath: string;
+  urlPattern: string;
+  importPath: string;
+  isDynamic: boolean;
+  params: string[];
+}
+
+export interface ScannedCron {
+  filePath: string;
+  name: string;
+  importPath: string;
+}
+
+export interface ScannedQueue {
+  filePath: string;
+  name: string;
+  importPath: string;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "make-void": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/workers-types": "^4.20250312.0",
+    "wrangler": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}

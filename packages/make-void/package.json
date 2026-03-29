@@ -1,0 +1,54 @@
+{
+  "name": "make-void",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./db": {
+      "types": "./virtual.d.ts"
+    },
+    "./kv": {
+      "types": "./virtual.d.ts"
+    },
+    "./storage": {
+      "types": "./virtual.d.ts"
+    },
+    "./queue": {
+      "types": "./virtual.d.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "db": ["./virtual.d.ts"],
+      "kv": ["./virtual.d.ts"],
+      "storage": ["./virtual.d.ts"],
+      "queue": ["./virtual.d.ts"]
+    }
+  },
+  "files": [
+    "dist",
+    "virtual.d.ts"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.3"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.0",
+    "@cloudflare/workers-types": "^4.20250312.0",
+    "@types/node": "^22.0.0"
+  }
+}

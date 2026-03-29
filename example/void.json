@@ -1,0 +1,13 @@
+{
+  "name": "example-app",
+  "bindings": {
+    "d1": "DB",
+    "kv": "KV",
+    "r2": "BUCKET",
+    "queue": "EMAIL_QUEUE"
+  },
+  "routes": "routes",
+  "crons": "crons",
+  "queues": "queues",
+  "schema": "db/schema.ts"
+}
