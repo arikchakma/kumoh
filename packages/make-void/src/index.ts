@@ -1,4 +1,3 @@
-import "./ambient.js";
 import type { Plugin } from "vite";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";

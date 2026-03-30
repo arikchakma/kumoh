@@ -10,20 +10,21 @@
       "import": "./dist/index.js"
     },
     "./db": {
-      "types": "./dist/index.d.ts"
+      "types": "./virtual.d.ts"
     },
     "./kv": {
-      "types": "./dist/index.d.ts"
+      "types": "./virtual.d.ts"
     },
     "./storage": {
-      "types": "./dist/index.d.ts"
+      "types": "./virtual.d.ts"
     },
     "./queue": {
-      "types": "./dist/index.d.ts"
+      "types": "./virtual.d.ts"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "virtual.d.ts"
   ],
   "scripts": {
     "build": "tsup",
