@@ -1,31 +1,19 @@
-export interface QueueMessage<T = unknown> {
-  readonly id: string;
-  readonly timestamp: Date;
-  readonly body: T;
-  ack(): void;
-  retry(): void;
-}
-
-export interface QueueBatch<T = unknown> {
-  readonly queue: string;
-  readonly messages: ReadonlyArray<QueueMessage<T>>;
-  ackAll(): void;
-  retryAll(): void;
-}
-
-export interface ExecutionContext {
-  waitUntil(promise: Promise<unknown>): void;
-  passThroughOnException(): void;
-}
-
-export type QueueHandler<T = unknown, Env = unknown> = (
-  batch: QueueBatch<T>,
-  env: Env,
-  ctx: ExecutionContext
-) => void | Promise<void>;
-
-export function defineQueue<T = unknown, Env = unknown>(
-  handler: QueueHandler<T, Env>
-): QueueHandler<T, Env> {
+/**
+ * Typed wrapper for queue consumer handlers. The signature matches
+ * Cloudflare's `ExportedHandlerQueueHandler` — `batch`, `env`, and `ctx`
+ * are passed through from the worker runtime.
+ *
+ * ```ts
+ * export default defineQueue<EmailMessage>(async (batch, env, ctx) => {
+ *   for (const msg of batch.messages) {
+ *     console.log(msg.body);
+ *     msg.ack();
+ *   }
+ * });
+ * ```
+ */
+export function defineQueue<Message = unknown, Env = unknown>(
+  handler: ExportedHandlerQueueHandler<Env, Message>
+): ExportedHandlerQueueHandler<Env, Message> {
   return handler;
 }
