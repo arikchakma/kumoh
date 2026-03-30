@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { resolve, join } from 'node:path';
 
-import { defineCommand, runMain, showUsage } from 'citty';
+import { defineCommand, runMain } from 'citty';
 
 const root = process.cwd();
 
@@ -59,7 +59,8 @@ function writeTempConfig(
   config: VoidJson,
   extra: Record<string, unknown> = {}
 ): string {
-  const tempPath = resolve(root, '.void-drizzle.config.json');
+  mkdirSync(resolve(root, '.void'), { recursive: true });
+  const tempPath = resolve(root, '.void', 'drizzle.config.json');
   writeFileSync(
     tempPath,
     JSON.stringify(
@@ -77,7 +78,7 @@ function writeTempConfig(
 }
 
 function cleanupTempConfig() {
-  const tempPath = resolve(root, '.void-drizzle.config.json');
+  const tempPath = resolve(root, '.void', 'drizzle.config.json');
   if (existsSync(tempPath)) {
     unlinkSync(tempPath);
   }
@@ -153,17 +154,11 @@ const studio = defineCommand({
 const db = defineCommand({
   meta: { name: 'db', description: 'Database commands' },
   subCommands: { generate, migrate, push: migrate, studio },
-  async run({ cmd }) {
-    await showUsage(cmd);
-  },
 });
 
 const main = defineCommand({
   meta: { name: 'void', version: '0.1.0', description: 'The Void CLI' },
   subCommands: { db },
-  async run({ cmd }) {
-    await showUsage(cmd);
-  },
 });
 
 void runMain(main);
