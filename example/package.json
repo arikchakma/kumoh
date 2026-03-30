@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "vp build",
+    "check": "vp check",
     "db:generate": "kumoh db generate",
     "db:migrate": "kumoh db migrate",
     "db:studio": "kumoh db studio",

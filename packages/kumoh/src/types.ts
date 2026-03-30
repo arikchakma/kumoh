@@ -13,6 +13,7 @@ export interface ScannedCron {
   filePath: string;
   name: string;
   importPath: string;
+  schedule: string;
 }
 
 export interface ScannedQueue {

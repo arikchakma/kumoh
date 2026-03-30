@@ -14,7 +14,12 @@ export default defineConfig({
     dts: true,
     sourcemap: true,
     deps: {
-      neverBundle: ['@cloudflare/vite-plugin', 'vite', 'drizzle-orm'],
+      neverBundle: [
+        '@cloudflare/vite-plugin',
+        'vite',
+        'drizzle-orm',
+        'oxc-parser',
+      ],
     },
   },
 });

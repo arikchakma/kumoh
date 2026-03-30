@@ -37,13 +37,15 @@
   },
   "scripts": {
     "build": "vp pack",
+    "check": "vp check",
     "dev": "vp pack --watch"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",
     "better-sqlite3": "^11.0.0",
     "citty": "^0.1.6",
-    "fast-glob": "^3.3.3"
+    "fast-glob": "^3.3.3",
+    "oxc-parser": "^0.121.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250312.0",

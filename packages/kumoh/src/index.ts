@@ -5,6 +5,7 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
 import { createVirtualModulesPlugin, createAliasPlugin } from './plugin.js';
+import { scanCrons } from './scanner.js';
 import type { MakeVoidConfig } from './types.js';
 
 export type { MakeVoidConfig } from './types.js';
@@ -45,7 +46,7 @@ function toPluginConfig(raw: KumohJson, root: string): MakeVoidConfig {
   };
 }
 
-function buildWorkerConfig(raw: KumohJson) {
+function buildWorkerConfig(raw: KumohJson, root: string) {
   const name = raw.name ?? 'kumoh-app';
 
   const workerConfig: Record<string, unknown> = {
@@ -95,6 +96,17 @@ function buildWorkerConfig(raw: KumohJson) {
     };
   }
 
+  // Extract cron schedules from files for wrangler triggers
+  if (raw.crons) {
+    const cronsDir = path.resolve(root, raw.crons);
+    const crons = scanCrons(root, cronsDir);
+    if (crons.length) {
+      workerConfig.triggers = {
+        crons: crons.map((c) => c.schedule),
+      };
+    }
+  }
+
   return workerConfig;
 }
 
@@ -105,7 +117,7 @@ export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
     ...toPluginConfig(raw, root),
     ...userConfig,
   };
-  const workerConfig = buildWorkerConfig(raw);
+  const workerConfig = buildWorkerConfig(raw, root);
   const envName = (raw.name ?? 'kumoh-app').replace(/-/g, '_');
 
   return [

@@ -1,14 +1,11 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import fg from 'fast-glob';
+import { parseSync } from 'oxc-parser';
 
 import type { ScannedCron, ScannedQueue } from './types.js';
 
-/**
- * Find the Hono app entry. If routesEntry is provided (absolute or relative),
- * check it exists. Otherwise search for common defaults relative to root.
- */
 export function findRoutesEntry(
   root: string,
   routesEntry?: string
@@ -37,6 +34,45 @@ export function findRoutesEntry(
   return null;
 }
 
+/**
+ * Extract `export const cron = '...'` from a TS/JS file using oxc AST parser.
+ */
+function extractCronSchedule(filePath: string): string | null {
+  const code = readFileSync(filePath, 'utf-8');
+  const { program } = parseSync(filePath, code);
+
+  for (const node of program.body) {
+    if (node.type !== 'ExportNamedDeclaration') {
+      continue;
+    }
+
+    const declaration = node.declaration;
+    if (!declaration || declaration.type !== 'VariableDeclaration') {
+      continue;
+    }
+
+    for (const declarator of declaration.declarations) {
+      if (
+        declarator.id.type !== 'Identifier' ||
+        declarator.id.name !== 'cron'
+      ) {
+        continue;
+      }
+
+      if (!declarator.init || declarator.init.type !== 'Literal') {
+        continue;
+      }
+
+      const literal = declarator.init;
+      if (typeof literal.value === 'string') {
+        return literal.value;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   const absDir = path.isAbsolute(cronsDir)
     ? cronsDir
@@ -48,11 +84,22 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
 
   return files
     .filter((f) => !path.basename(f).startsWith('_'))
-    .map((file) => ({
-      filePath: path.resolve(absDir, file),
-      name: path.basename(file, path.extname(file)),
-      importPath: path.resolve(absDir, file),
-    }));
+    .map((file) => {
+      const filePath = path.resolve(absDir, file);
+      const schedule = extractCronSchedule(filePath);
+      if (!schedule) {
+        console.warn(
+          `[kumoh] ${file}: missing \`export const cron = '...'\`, skipping`
+        );
+      }
+      return {
+        filePath,
+        name: path.basename(file, path.extname(file)),
+        importPath: filePath,
+        schedule: schedule ?? '',
+      };
+    })
+    .filter((c) => c.schedule !== '');
 }
 
 export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
