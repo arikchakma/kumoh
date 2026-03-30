@@ -14,13 +14,13 @@ export default {
 };
 ```
 
-This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. void.cloud solves this by letting you write:
+This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. make-void solves this by letting you write:
 
 ```ts
 import { sql } from "make-void/db";
 import { kv } from "make-void/kv";
 
-// Just use them directly — no env threading
+// Just use them directly -- no env threading
 const result = await sql`SELECT * FROM users`;
 const cached = await kv.get("key");
 ```
@@ -29,13 +29,34 @@ const cached = await kv.get("key");
 
 ---
 
+## The Key Insight: `import { env } from "cloudflare:workers"`
+
+Since March 2025, Cloudflare Workers supports importing `env` directly as a module:
+
+```ts
+import { env } from "cloudflare:workers";
+const result = await env.DB.prepare("SELECT * FROM users").all();
+```
+
+This is a workerd-native feature -- no AsyncLocalStorage, no request context wrapping. It works at module scope. This means you can create a plain file:
+
+```ts
+// lib/db.ts
+import { env } from "cloudflare:workers";
+export const db = env.DB;
+```
+
+And import it anywhere. make-void automates this pattern via a Vite plugin that generates these wrapper modules from your config.
+
+---
+
 ## The Core Trick: Vite Virtual Modules
 
 Vite plugins have two hooks that let you create modules that **don't exist on disk**:
 
-1. **`resolveId(id)`** — Vite calls this when it encounters an import. If your plugin returns a value, Vite uses that as the resolved module ID instead of looking for a file. By convention, virtual modules are prefixed with `\0` (null byte) to tell other plugins "this isn't a real file path."
+1. **`resolveId(id)`** -- Vite calls this when it encounters an import. If your plugin returns a value, Vite uses that as the resolved module ID instead of looking for a file. By convention, virtual modules are prefixed with `\0` (null byte) to tell other plugins "this isn't a real file path."
 
-2. **`load(id)`** — Vite calls this to get the module's source code. Your plugin returns a **string of JavaScript** that Vite treats as if it were reading a file.
+2. **`load(id)`** -- Vite calls this to get the module's source code. Your plugin returns a **string of JavaScript** that Vite treats as if it were reading a file.
 
 So when your code says `import { sql } from "make-void/db"`:
 
@@ -65,7 +86,6 @@ const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
 
 export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
   let root: string;
-  let isDev = false;
 
   return {
     name: "make-void:virtual-modules",
@@ -73,7 +93,6 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
     configResolved(cfg: ResolvedConfig) {
       root = cfg.root;
-      isDev = cfg.command === "serve";  // true in dev, false in build
     },
 
     resolveId(id: string) {
@@ -90,7 +109,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
       // Generate the module code string
       if (MODULE_GENERATORS[moduleId]) {
-        return MODULE_GENERATORS[moduleId](config, isDev);
+        return MODULE_GENERATORS[moduleId](config);
       }
 
       // ... handle make-void/entry ...
@@ -103,16 +122,16 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
 ---
 
-## What Gets Generated: Production vs Dev
+## What Gets Generated
 
-Each virtual module generator is a function that returns a **string of JavaScript**. The string changes based on whether you're in dev or production.
+Each virtual module generator is a function that returns a **string of JavaScript**. The same code runs in both dev and production because both environments run inside workerd (the Cloudflare Workers runtime).
 
-### Production: `import { env } from "cloudflare:workers"`
+### `make-void/db` -- D1 Database
 
-Since March 2025, Cloudflare Workers supports importing `env` as a module. The generated code for `make-void/db` in production:
+The generated code for `make-void/db`:
 
 ```ts
-// This is a STRING returned by the load() hook — not a real file
+// This is a STRING returned by the load() hook -- not a real file
 import { env } from "cloudflare:workers";
 
 export async function sql(strings, ...values) {
@@ -128,7 +147,7 @@ export const db = new Proxy({}, {
 });
 ```
 
-The `db` export is a `Proxy` — when you call `db.prepare(...)`, the Proxy intercepts the `.prepare` property access and forwards it to `env.DB.prepare`. It's a transparent wrapper.
+The `db` export is a `Proxy` -- when you call `db.prepare(...)`, the Proxy intercepts the `.prepare` property access and forwards it to `env.DB.prepare`. It's a transparent wrapper.
 
 The `sql` export is a tagged template function. When you write:
 
@@ -144,17 +163,12 @@ The binding name (`DB`) comes from your `void.json` config:
 { "bindings": { "d1": "DB" } }
 ```
 
-The generator reads `config.bindings.d1` and interpolates it into the generated code string. This is the actual generator function:
+The generator reads `config.bindings.d1` and interpolates it into the generated code string:
 
 ```ts
-export function generateDbModule(config: MakeVoidConfig, isDev: boolean): string {
+export function generateDbModule(config: MakeVoidConfig): string {
   const bindingName = config.bindings?.d1 ?? "DB";
 
-  if (isDev) {
-    // ... return mock code (see below) ...
-  }
-
-  // Production: real cloudflare binding
   return `
 import { env } from "cloudflare:workers";
 
@@ -173,73 +187,109 @@ export const db = new Proxy({}, {
 }
 ```
 
-Same pattern for KV, R2, and Queue — each wraps `env.BINDING_NAME` with a Proxy:
+### Other Bindings
+
+Same pattern for KV, R2, and Queue -- each wraps `env.BINDING_NAME` with a Proxy:
 
 ```ts
 // make-void/kv -> wraps env.KV
+import { env } from "cloudflare:workers";
 export const kv = new Proxy({}, {
   get(_, prop) { return Reflect.get(env.KV, prop); }
 });
 
 // make-void/storage -> wraps env.BUCKET
+import { env } from "cloudflare:workers";
 export const storage = new Proxy({}, {
   get(_, prop) { return Reflect.get(env.BUCKET, prop); }
 });
 
 // make-void/queue -> wraps env.QUEUE
+import { env } from "cloudflare:workers";
 export const queue = new Proxy({}, {
   get(_, prop) { return Reflect.get(env.QUEUE, prop); }
 });
 ```
 
-### Dev: In-Memory Mocks
+---
 
-`cloudflare:workers` doesn't exist in Node.js, so in dev mode the generator returns mock implementations. For the DB module, it generates a mini SQL engine backed by `Map`s:
+## No Mocks: Real Bindings in Dev via workerd
+
+There are **no mock implementations**. Both dev and production run inside workerd (the Cloudflare Workers runtime), so `import { env } from "cloudflare:workers"` works natively everywhere.
+
+In dev mode, `@cloudflare/vite-plugin` runs a local workerd instance via Miniflare. This provides real local implementations of D1 (backed by SQLite), KV (local file storage), R2, queues, etc. The data persists in the `.void/` directory.
+
+This is why the virtual module generators have no `isDev` branching -- the same generated code works in both environments.
+
+---
+
+## Code as Infrastructure: `void.json`
+
+There is no `wrangler.toml`. The `void.json` file is the single source of truth for your entire application:
+
+```json
+{
+  "name": "example-app",
+  "bindings": {
+    "d1": "DB",
+    "kv": "KV",
+    "r2": "BUCKET",
+    "queue": "EMAIL_QUEUE"
+  },
+  "routes": "routes/index.ts",
+  "crons": "crons",
+  "queues": "queues",
+  "schema": "db/schema.ts"
+}
+```
+
+The `makeVoid()` plugin reads this file and **generates the Cloudflare worker configuration programmatically**. It translates void.json into the config that `@cloudflare/vite-plugin` expects:
 
 ```ts
-const tables = new Map();  // table name -> array of row objects
+function buildWorkerConfig(raw: VoidJson) {
+  const workerConfig: Record<string, unknown> = {
+    name: raw.name ?? "make-void-app",
+    main: "make-void/entry",  // virtual module as worker entry
+    compatibility_date: "2025-03-14",
+    compatibility_flags: ["nodejs_compat"],
+  };
 
-function getTable(name) {
-  if (!tables.has(name)) tables.set(name, []);
-  return tables.get(name);
-}
+  const bindings = raw.bindings ?? {};
 
-function parseQuery(query, bindings) {
-  // INSERT INTO users (name, email) VALUES (?, ?)
-  // -> pushes { name: bindings[0], email: bindings[1], id: auto } into the Map
-  const insertMatch = q.match(/INSERT\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES/i);
-  if (insertMatch) { /* ... */ }
+  if (bindings.d1) {
+    workerConfig.d1_databases = [{
+      binding: bindings.d1,
+      database_name: `${raw.name ?? "make-void"}-db`,
+      database_id: "local",
+    }];
+  }
 
-  // SELECT id, name FROM users WHERE id = ?
-  // -> filters the Map, projects columns
-  const selectMatch = q.match(/SELECT\s+(.+?)\s+FROM\s+(\w+)/i);
-  if (selectMatch) { /* ... handles count(*), WHERE, column projection ... */ }
+  if (bindings.kv) {
+    workerConfig.kv_namespaces = [{
+      binding: bindings.kv,
+      id: "local",
+    }];
+  }
 
-  // DELETE FROM sessions WHERE ...
-  // -> clears the Map
+  if (bindings.r2) {
+    workerConfig.r2_buckets = [{
+      binding: bindings.r2,
+      bucket_name: `${raw.name ?? "make-void"}-bucket`,
+    }];
+  }
+
+  if (bindings.queue) {
+    workerConfig.queues = {
+      producers: [{ binding: bindings.queue, queue: `${raw.name}-queue` }],
+      consumers: [{ queue: `${raw.name}-queue` }],
+    };
+  }
+
+  return workerConfig;
 }
 ```
 
-For KV, it's a simple `Map` with the same API:
-
-```ts
-const store = new Map();
-
-export const kv = {
-  async get(key, opts) { return store.get(key) ?? null; },
-  async put(key, value, opts) { store.set(key, value); },
-  async delete(key) { store.delete(key); },
-  async list(opts) { /* ... */ },
-};
-```
-
-The `isDev` flag comes from Vite's resolved config:
-
-```ts
-configResolved(cfg) {
-  isDev = cfg.command === "serve";  // vite dev = true, vite build = false
-}
-```
+The `@cloudflare/vite-plugin` accepts this config object directly via its `config` option -- no file on disk needed. Local state (D1 databases, KV data, etc.) persists in `.void/` instead of the default `.wrangler/`.
 
 ---
 
@@ -248,16 +298,27 @@ configResolved(cfg) {
 You write a single Hono app that owns all HTTP routing:
 
 ```ts
-// example/routes/index.ts
+// routes/index.ts
 import { Hono } from "hono";
-import { sql } from "make-void/db";  // <- virtual module!
+import { db, sql } from "make-void/db";
 
 const app = new Hono();
+
+app.get("/api/setup", async (c) => {
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
+    CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT);
+  `);
+  return c.json({ ok: true });
+});
 
 app.get("/api/hello", async (c) => {
   await sql`INSERT INTO visits (path) VALUES (${"/api/hello"})`;
   const result = await sql`SELECT count(*) as count FROM visits`;
-  return c.json({ message: "Hello!", visits: result.results[0].count });
+  return c.json({
+    message: "Hello from make-void!",
+    visits: result.results[0].count,
+  });
 });
 
 app.get("/api/users/:id", async (c) => {
@@ -269,73 +330,24 @@ app.get("/api/users/:id", async (c) => {
   return c.json(result.results[0]);
 });
 
+app.post("/api/users", async (c) => {
+  const body = await c.req.json();
+  await sql`INSERT INTO users (name, email) VALUES (${body.name}, ${body.email})`;
+  return c.json({ created: true }, 201);
+});
+
 export default app;
 ```
 
-When Vite processes this file, it encounters `import { sql } from "make-void/db"`. Our plugin's `resolveId` intercepts it, `load` returns the generated code, and Vite stitches it all together. The user never sees the generated code.
+When Vite processes this file, it encounters `import { sql } from "make-void/db"`. Our plugin's `resolveId` intercepts it, `load` returns the generated code with `import { env } from "cloudflare:workers"`, and Vite stitches it all together. The user never sees the generated code.
+
+Hono owns all routing, middleware, validation, etc. make-void doesn't touch HTTP handling at all.
 
 ---
 
-## The Dev Server Middleware
+## The Generated Worker Entry: `make-void/entry`
 
-In dev mode (`vite dev`), the Vite dev server serves static files. It has no idea what to do with `GET /api/hello`. We need a middleware that intercepts HTTP requests and passes them to the Hono app.
-
-```ts
-export function createDevServerPlugin(config: MakeVoidConfig): Plugin {
-  return {
-    name: "make-void:dev-server",
-
-    configureServer(server: ViteDevServer) {
-      server.middlewares.use(async (req, res, next) => {
-        // 1. Find the routes entry file
-        const routesEntry = findRoutesEntry(root, config.routesEntry);
-        if (!routesEntry) return next();
-
-        // 2. Load the Hono app through Vite's SSR module loader
-        //    This resolves ALL imports (including virtual modules) through our plugin
-        const mod = await server.ssrLoadModule(path.resolve(root, routesEntry));
-        const app = mod.default;
-
-        // 3. Convert Node.js IncomingMessage -> Web standard Request
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        const webRequest = new Request(url.toString(), {
-          method: req.method,
-          headers: /* ... convert Node headers to Headers object ... */,
-          body: /* ... read body for POST/PUT ... */,
-        });
-
-        // 4. Call Hono's fetch handler
-        const response = await app.fetch(webRequest);
-
-        // 5. Distinguish "no route matched" from "handler returned 404"
-        //    Hono's default 404 has no content-type header.
-        //    A handler returning c.json({error}, 404) has content-type: application/json
-        if (response.status === 404 && !response.headers.get("content-type")) {
-          return next();  // Let Vite handle it (HMR, static files, etc.)
-        }
-
-        // 6. Convert Web Response -> Node.js response
-        res.statusCode = response.status;
-        response.headers.forEach((v, k) => res.setHeader(k, v));
-        res.end(Buffer.from(await response.arrayBuffer()));
-      });
-    },
-  };
-}
-```
-
-The key step is **`server.ssrLoadModule()`**. This is Vite's built-in SSR module runner. It loads the file through Vite's full transform pipeline, which means:
-
-- TypeScript gets compiled
-- `import { sql } from "make-void/db"` hits our `resolveId` -> `load` hooks
-- The generated virtual module code is included
-- HMR works -- edit the route file, changes apply immediately
-
----
-
-## The Build Entry: Code Generation for Crons & Queues
-
-Cloudflare Workers need a single entry point that exports `{ fetch, scheduled, queue }`. The `make-void/entry` virtual module generates this by scanning `crons/` and `queues/` directories:
+Cloudflare Workers need a single entry point that exports `{ fetch, scheduled, queue }`. The `make-void/entry` virtual module generates this by scanning `crons/` and `queues/` directories and importing the Hono app.
 
 ### Scanner (`scanner.ts`)
 
@@ -399,6 +411,10 @@ export default {
 };
 ```
 
+The key detail: `main: "make-void/entry"` is set in the worker config. The Cloudflare Vite plugin passes non-extension strings through to Vite's module resolver, where our `resolveId` hook intercepts it and `load` returns the generated entry code.
+
+### Cron Convention
+
 Each cron file exports its schedule string and a default handler:
 
 ```ts
@@ -409,6 +425,8 @@ export default async function handler(ctx) {
 }
 ```
 
+### Queue Convention
+
 Each queue file exports its queue name and a default handler:
 
 ```ts
@@ -416,50 +434,12 @@ Each queue file exports its queue name and a default handler:
 export const queueName = "EMAIL_QUEUE";
 export default async function handler(ctx) {
   for (const message of ctx.batch.messages) {
-    // process message
     message.ack();
   }
 }
 ```
 
 The `cronMap` and `queueMap` are lookup tables that Cloudflare calls at runtime -- `controller.cron` matches the schedule string, `batch.queue` matches the queue name.
-
----
-
-## The Config: `void.json`
-
-```json
-{
-  "name": "example-app",
-  "bindings": {
-    "d1": "DB",
-    "kv": "KV",
-    "r2": "BUCKET",
-    "queue": "EMAIL_QUEUE"
-  },
-  "routes": "routes/index.ts",
-  "crons": "crons",
-  "queues": "queues",
-  "schema": "db/schema.ts"
-}
-```
-
-This is loaded at plugin initialization:
-
-```ts
-function loadVoidJson(root) {
-  const raw = JSON.parse(readFileSync("void.json", "utf-8"));
-  return {
-    routesEntry: raw.routes,     // "routes/index.ts"
-    bindings: raw.bindings,      // { d1: "DB", kv: "KV", ... }
-    cronsDir: raw.crons,         // "crons"
-    queuesDir: raw.queues,       // "queues"
-    schemaPath: raw.schema,      // "db/schema.ts"
-  };
-}
-```
-
-The binding names are injected into the generated code. If your `wrangler.toml` uses `binding = "MY_DATABASE"`, you'd set `"d1": "MY_DATABASE"` and the generated code becomes `env.MY_DATABASE.prepare(...)`.
 
 ---
 
@@ -490,7 +470,7 @@ declare module "make-void/queue" {
 }
 ```
 
-These reference `D1Database`, `KVNamespace`, `R2Bucket`, `Queue` -- globals from `@cloudflare/workers-types`. The package.json routes types resolution there:
+These reference `D1Database`, `KVNamespace`, `R2Bucket`, `Queue` -- globals from `@cloudflare/workers-types`. The package.json routes type resolution there:
 
 ```json
 {
@@ -504,7 +484,7 @@ These reference `D1Database`, `KVNamespace`, `R2Bucket`, `Queue` -- globals from
 The `@schema` alias is resolved by both Vite (via `resolve.alias`) and TypeScript (via `tsconfig.json` paths):
 
 ```ts
-// Plugin injects:
+// Plugin injects at build time:
 config() {
   return {
     resolve: { alias: { "@schema": path.resolve(root, "db/schema.ts") } }
@@ -513,89 +493,107 @@ config() {
 ```
 
 ```json
-// tsconfig.json
+// tsconfig.json (user adds this for editor support)
 { "compilerOptions": { "paths": { "@schema": ["./db/schema.ts"] } } }
 ```
 
 ---
 
-## The 4 Plugins
+## The Plugin Assembly
 
-`makeVoid()` returns an array of 4 cooperating Vite plugins:
+`makeVoid()` returns an array of plugins. It reads `void.json`, generates the worker config, and composes everything:
 
 ```ts
 export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
-  const fileConfig = loadVoidJson(process.cwd());
-  const config = { ...fileConfig, ...userConfig };
+  const raw = loadVoidJson(process.cwd());
+  const config = { ...voidJsonToConfig(raw), ...userConfig };
+  const workerConfig = buildWorkerConfig(raw);
 
   return [
-    createVirtualModulesPlugin(config),  // resolveId + load for make-void/*
-    createDevServerPlugin(config),       // Dev middleware: Node req -> Hono -> Node res
-    createScannerPlugin(config),         // Watches crons/queues dirs for changes
-    createAliasPlugin(config),           // @schema -> db/schema.ts
+    // Virtual modules (enforce: "pre") -- resolves make-void/* imports
+    createVirtualModulesPlugin(config),
+    // @schema -> db/schema.ts alias
+    createAliasPlugin(config),
+    // @cloudflare/vite-plugin -- runs workerd with real local bindings
+    ...cloudflare({ config: workerConfig, persistState: { path: ".void" } }),
   ];
 }
 ```
 
 | Plugin | Hook | What It Does |
 |---|---|---|
-| `make-void:virtual-modules` | `resolveId` + `load` | Intercepts `make-void/db` etc., returns generated JS |
-| `make-void:dev-server` | `configureServer` | Middleware that pipes requests through Hono in dev |
-| `make-void:scanner` | `configureServer` | Watches crons/queues/routes files for HMR |
+| `make-void:virtual-modules` | `resolveId` + `load` | Intercepts `make-void/db` etc., returns generated JS wrapping `cloudflare:workers` env |
 | `make-void:alias` | `config` | Maps `@schema` to `db/schema.ts` |
+| `@cloudflare/vite-plugin` (multiple) | Various | Runs workerd/Miniflare with real D1, KV, R2, queues locally |
+
+The user's `vite.config.ts` is just:
+
+```ts
+import { defineConfig } from "vite";
+import { makeVoid } from "make-void";
+
+export default defineConfig({
+  plugins: [makeVoid()],
+});
+```
 
 ---
 
 ## The Full Request Flow
 
-### Dev Mode (`vite dev`)
+### Dev and Production (identical -- both run in workerd)
 
 ```
-Browser: GET /api/users/1
+Request: GET /api/users/1
          |
          v
-Vite Dev Server (Node.js)
+workerd (Cloudflare Workers runtime)
+  - In dev: local workerd via @cloudflare/vite-plugin + Miniflare
+  - In prod: Cloudflare's edge network
          |
          v
-make-void:dev-server middleware
+make-void/entry (virtual module, generated at build/dev time)
+  - exports { fetch: app.fetch, scheduled, queue }
          |
-         +-- server.ssrLoadModule("routes/index.ts")
-         |    +-- Vite compiles TypeScript
-         |    +-- import "make-void/db" -> resolveId -> load -> generated mock code
-         |    +-- Returns the Hono app with all virtual modules resolved
-         |
-         +-- Convert Node IncomingMessage -> Web Request
-         |
-         +-- app.fetch(webRequest)  <- Hono handles routing
-         |
-         +-- Handler runs: sql`SELECT ... WHERE id = ${id}`
-         |    +-- sql is from the virtual module -> calls mock D1 -> queries in-memory Map
-         |
-         +-- Hono returns Response (200 JSON / 404 JSON / etc.)
-         |
-         +-- Convert Web Response -> Node response -> Browser
-```
-
-### Production (`vite build` + Cloudflare deploy)
-
-```
-Internet: GET /api/users/1
-          |
-          v
-Cloudflare Worker (workerd runtime)
-          |
-          v
-Generated entry module (make-void/entry)
-          |
-          +-- export default { fetch: app.fetch, scheduled, queue }
-          |
-          v
+         v
 app.fetch(request)  <- Hono handles routing
-          |
-          +-- Handler runs: sql`SELECT ... WHERE id = ${id}`
-          |    +-- sql is from virtual module -> import { env } from "cloudflare:workers"
-          |       +-- env.DB.prepare("SELECT ... WHERE id = ?").bind(id).all()
-          |           +-- Real D1 database query
-          |
-          +-- Returns Response to client
+         |
+         v
+Route handler runs
+  - import { sql } from "make-void/db"
+  - sql is from the virtual module:
+      import { env } from "cloudflare:workers"
+      env.DB.prepare("SELECT ... WHERE id = ?").bind("1").all()
+         |
+         v
+D1 Database
+  - In dev: local SQLite via Miniflare (persisted in .void/)
+  - In prod: Cloudflare D1
+         |
+         v
+Response returned to client
 ```
+
+The same code, the same runtime, the same virtual modules -- dev and production are identical. No mocks, no shimming, no Node.js middleware layer in between.
+
+---
+
+## File Structure
+
+```
+my-app/
+  void.json              # Single source of truth -- bindings, routes, crons, queues
+  vite.config.ts         # Just: plugins: [makeVoid()]
+  routes/
+    index.ts             # Hono app -- owns all HTTP routing
+  db/
+    schema.ts            # Drizzle schema or table definitions
+    migrations/          # SQL migration files
+  crons/
+    cleanup.ts           # export const schedule + export default handler
+  queues/
+    email.ts             # export const queueName + export default handler
+  .void/                 # Local dev state (D1, KV, R2) -- gitignored
+```
+
+No `wrangler.toml`. No mock files. No middleware glue. void.json declares the intent, make-void generates the infrastructure.
