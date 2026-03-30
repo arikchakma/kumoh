@@ -1,14 +1,10 @@
-import type { MakeVoidConfig } from "../types.js";
-
-export function generateKvModule(config: MakeVoidConfig): string {
-  const bindingName = config.bindings?.kv ?? "KV";
-
+export function generateKvModule(): string {
   return `
 import { env } from "cloudflare:workers";
 
 export const kv = new Proxy({}, {
   get(_, prop) {
-    return Reflect.get(env.${bindingName}, prop);
+    return Reflect.get(env.KV, prop);
   }
 });
 `;

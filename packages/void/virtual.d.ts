@@ -1,5 +1,5 @@
-declare module "void/db" {
-  import type { DrizzleD1Database } from "drizzle-orm/d1";
+declare module 'void/db' {
+  import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
   /** Drizzle ORM instance pre-configured with the D1 binding */
   export const db: DrizzleD1Database;
@@ -32,7 +32,7 @@ declare module "void/db" {
     avg,
     min,
     max,
-  } from "drizzle-orm";
+  } from 'drizzle-orm';
 
   // Schema builders
   export {
@@ -44,20 +44,20 @@ declare module "void/db" {
     primaryKey,
     uniqueIndex,
     index,
-  } from "drizzle-orm/sqlite-core";
+  } from 'drizzle-orm/sqlite-core';
 }
 
-declare module "void/kv" {
+declare module 'void/kv' {
   /** Proxy to the raw KVNamespace binding */
   export const kv: KVNamespace;
 }
 
-declare module "void/storage" {
+declare module 'void/storage' {
   /** Proxy to the raw R2Bucket binding */
   export const storage: R2Bucket;
 }
 
-declare module "void/queue" {
+declare module 'void/queue' {
   /** Proxy to the raw Queue binding */
   export const queue: Queue;
 }

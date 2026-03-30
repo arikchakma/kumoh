@@ -1,18 +1,18 @@
-import { sqliteTable, text, integer } from "void/db";
+import { sqliteTable, text, integer } from 'void/db';
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
 });
 
-export const visits = sqliteTable("visits", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  path: text("path"),
+export const visits = sqliteTable('visits', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  path: text('path'),
 });
 
-export const sessions = sqliteTable("sessions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id").references(() => users.id),
-  expiresAt: text("expires_at"),
+export const sessions = sqliteTable('sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').references(() => users.id),
+  expiresAt: text('expires_at'),
 });

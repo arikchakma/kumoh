@@ -7,13 +7,6 @@ export interface MakeVoidConfig {
   queuesDir?: string;
   /** Path to DB schema file. Default: "db/schema.ts" */
   schemaPath?: string;
-  /** Binding names from wrangler.toml */
-  bindings?: {
-    d1?: string;
-    kv?: string;
-    r2?: string;
-    queue?: string;
-  };
 }
 
 export interface CronContext {

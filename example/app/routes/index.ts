@@ -1,10 +1,10 @@
-import { Hono } from "hono";
-import { db, eq, count, d1 } from "void/db";
-import { users, visits } from "@schema";
+import { users, visits } from '@schema';
+import { Hono } from 'hono';
+import { db, eq, count, d1 } from 'void/db';
 
 const app = new Hono();
 
-app.get("/api/setup", async (c) => {
+app.get('/api/setup', async (c) => {
   await d1.exec(`
     CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
     CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL);
@@ -13,21 +13,21 @@ app.get("/api/setup", async (c) => {
   return c.json({ ok: true });
 });
 
-app.get("/api/hello", async (c) => {
-  await db.insert(visits).values({ path: "/api/hello" });
+app.get('/api/hello', async (c) => {
+  await db.insert(visits).values({ path: '/api/hello' });
   const result = await db.select({ count: count() }).from(visits);
   return c.json({
-    message: "Hello from make-void!",
+    message: 'Hello from make-void!',
     visits: result[0].count,
   });
 });
 
-app.get("/api/users", async (c) => {
+app.get('/api/users', async (c) => {
   const allUsers = await db.select().from(users);
   return c.json(allUsers);
 });
 
-app.get("/api/users/:id", async (c) => {
+app.get('/api/users/:id', async (c) => {
   const { id } = c.req.param();
   const result = await db
     .select()
@@ -40,7 +40,7 @@ app.get("/api/users/:id", async (c) => {
   return c.json(result[0]);
 });
 
-app.post("/api/users", async (c) => {
+app.post('/api/users', async (c) => {
   const body = await c.req.json();
   await db.insert(users).values({ name: body.name, email: body.email });
   return c.json({ created: true }, 201);

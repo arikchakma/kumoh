@@ -12,7 +12,7 @@ export {
   primaryKey,
   uniqueIndex,
   index,
-} from "drizzle-orm/sqlite-core";
+} from 'drizzle-orm/sqlite-core';
 
 export {
   eq,
@@ -38,4 +38,4 @@ export {
   avg,
   min,
   max,
-} from "drizzle-orm";
+} from 'drizzle-orm';

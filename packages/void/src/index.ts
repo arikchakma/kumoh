@@ -1,97 +1,96 @@
-import type { Plugin } from "vite";
-import { readFileSync, existsSync } from "node:fs";
-import path from "node:path";
-import { cloudflare } from "@cloudflare/vite-plugin";
-import { createVirtualModulesPlugin, createAliasPlugin } from "./plugin.js";
-import type { MakeVoidConfig } from "./types.js";
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
-export type { MakeVoidConfig, CronContext, QueueContext } from "./types.js";
+import { cloudflare } from '@cloudflare/vite-plugin';
+import type { Plugin } from 'vite';
+
+import { createVirtualModulesPlugin, createAliasPlugin } from './plugin.js';
+import type { MakeVoidConfig } from './types.js';
+
+export type { MakeVoidConfig, CronContext, QueueContext } from './types.js';
 
 interface VoidJson {
   name?: string;
-  bindings?: {
-    d1?: string;
-    kv?: string;
-    r2?: string;
-    queue?: string;
-  };
   routes?: string;
   crons?: string;
   queues?: string;
   schema?: string;
 }
 
+// Fixed binding names — the user never needs to know these
+const BINDING_NAMES = {
+  d1: 'DB',
+  kv: 'KV',
+  r2: 'BUCKET',
+  queue: 'QUEUE',
+} as const;
+
 function loadVoidJson(root: string): VoidJson {
-  const configPath = path.resolve(root, "void.json");
-  if (!existsSync(configPath)) return {};
-  return JSON.parse(readFileSync(configPath, "utf-8"));
+  const configPath = path.resolve(root, 'void.json');
+  if (!existsSync(configPath)) {
+    return {};
+  }
+  return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
 function voidJsonToConfig(raw: VoidJson, root: string): MakeVoidConfig {
   return {
     routesEntry: raw.routes ? path.resolve(root, raw.routes) : undefined,
-    cronsDir: path.resolve(root, raw.crons ?? "app/crons"),
-    queuesDir: path.resolve(root, raw.queues ?? "app/queues"),
-    schemaPath: path.resolve(root, raw.schema ?? "app/db/schema.ts"),
-    bindings: raw.bindings,
+    cronsDir: path.resolve(root, raw.crons ?? 'app/crons'),
+    queuesDir: path.resolve(root, raw.queues ?? 'app/queues'),
+    schemaPath: path.resolve(root, raw.schema ?? 'app/db/schema.ts'),
   };
 }
 
-/**
- * Build the @cloudflare/vite-plugin worker config from void.json.
- * No wrangler.toml needed — void.json is the single source of truth.
- */
 function buildWorkerConfig(raw: VoidJson) {
+  const name = raw.name ?? 'void-app';
+
   const workerConfig: Record<string, unknown> = {
-    name: raw.name ?? "make-void-app",
-    // Virtual module entry — the Cloudflare plugin passes non-extension
-    // strings through to Vite's resolver, where our plugin handles it
-    main: "void/entry",
-    compatibility_date: "2025-03-14",
-    compatibility_flags: ["nodejs_compat"],
+    name,
+    main: 'void/entry',
+    compatibility_date: '2025-03-14',
+    compatibility_flags: ['nodejs_compat'],
   };
 
-  const bindings = raw.bindings ?? {};
-
-  if (bindings.d1) {
+  // Always provision D1 if schema is configured
+  if (raw.schema) {
     workerConfig.d1_databases = [
       {
-        binding: bindings.d1,
-        database_name: `${raw.name ?? "make-void"}-db`,
-        database_id: "local",
+        binding: BINDING_NAMES.d1,
+        database_name: `${name}-db`,
+        database_id: 'local',
       },
     ];
   }
 
-  if (bindings.kv) {
-    workerConfig.kv_namespaces = [
-      {
-        binding: bindings.kv,
-        id: "local",
-      },
-    ];
-  }
+  // Always provision KV
+  workerConfig.kv_namespaces = [
+    {
+      binding: BINDING_NAMES.kv,
+      id: 'local',
+    },
+  ];
 
-  if (bindings.r2) {
-    workerConfig.r2_buckets = [
-      {
-        binding: bindings.r2,
-        bucket_name: `${raw.name ?? "make-void"}-bucket`,
-      },
-    ];
-  }
+  // Always provision R2
+  workerConfig.r2_buckets = [
+    {
+      binding: BINDING_NAMES.r2,
+      bucket_name: `${name}-bucket`,
+    },
+  ];
 
-  if (bindings.queue) {
+  // Provision queues if queues dir is configured
+  if (raw.queues) {
     workerConfig.queues = {
       producers: [
         {
-          binding: bindings.queue,
-          queue: `${raw.name ?? "make-void"}-queue`,
+          binding: BINDING_NAMES.queue,
+          queue: `${name}-queue`,
         },
       ],
       consumers: [
         {
-          queue: `${raw.name ?? "make-void"}-queue`,
+          queue: `${name}-queue`,
         },
       ],
     };
@@ -103,20 +102,22 @@ function buildWorkerConfig(raw: VoidJson) {
 export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
   const root = process.cwd();
   const raw = loadVoidJson(root);
-  const config: MakeVoidConfig = { ...voidJsonToConfig(raw, root), ...userConfig };
+  const config: MakeVoidConfig = {
+    ...voidJsonToConfig(raw, root),
+    ...userConfig,
+  };
   const workerConfig = buildWorkerConfig(raw);
-  const envName = (raw.name ?? "make-void-app").replace(/-/g, "_");
+  const envName = (raw.name ?? 'void-app').replace(/-/g, '_');
 
   return [
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
-    ...cloudflare({ config: workerConfig, persistState: { path: ".void" } }),
-    // Output directly to dist/ instead of dist/<worker_name>/
+    ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
     {
-      name: "make-void:output",
+      name: 'void:output',
       config: () => ({
         environments: {
-          [envName]: { build: { outDir: "dist" } },
+          [envName]: { build: { outDir: 'dist' } },
         },
       }),
     } as Plugin,
