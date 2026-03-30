@@ -1,33 +1,34 @@
 #!/usr/bin/env node
 
-import { execSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import {
-  readFileSync,
-  existsSync,
-  writeFileSync,
-  mkdirSync,
-  unlinkSync,
-  readdirSync,
-} from 'node:fs';
-import { resolve, join } from 'node:path';
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 import { defineCommand, runMain } from 'citty';
-
 const root = process.cwd();
 
 interface KumohJson {
   name?: string;
   schema?: string;
-  bindings?: { d1?: string };
 }
 
-function loadKumohJson(): KumohJson {
+async function loadKumohJson(): Promise<KumohJson> {
   const configPath = resolve(root, 'kumoh.json');
-  if (!existsSync(configPath)) {
+  try {
+    await access(configPath);
+  } catch {
     console.error('No kumoh.json found in current directory.');
     process.exit(1);
   }
-  return JSON.parse(readFileSync(configPath, 'utf-8'));
+  const content = await readFile(configPath, 'utf-8');
+  return JSON.parse(content);
 }
 
 function getSchemaPath(config: KumohJson): string {
@@ -39,29 +40,33 @@ function getMigrationsDir(config: KumohJson): string {
   return join(resolve(root, schemaPath, '..'), 'migrations');
 }
 
-function getLocalDbPath(): string | null {
+async function getLocalDbPath(): Promise<string | null> {
   const d1Dir = join(root, '.kumoh', 'v3', 'd1');
-  if (!existsSync(d1Dir)) {
+  try {
+    await access(d1Dir);
+  } catch {
     return null;
   }
 
-  for (const subdir of readdirSync(d1Dir)) {
+  const subdirs = await readdir(d1Dir);
+  for (const subdir of subdirs) {
     const dir = join(d1Dir, subdir);
-    const dbFile = readdirSync(dir).find((f) => f.endsWith('.sqlite'));
+    const files = await readdir(dir);
+    const dbFile = files.find((f) => f.endsWith('.sqlite'));
     if (dbFile) {
-      return join(dir, dbFile as string);
+      return join(dir, dbFile);
     }
   }
   return null;
 }
 
-function writeTempConfig(
+async function writeTempConfig(
   config: KumohJson,
   extra: Record<string, unknown> = {}
-): string {
-  mkdirSync(resolve(root, '.kumoh'), { recursive: true });
+): Promise<string> {
+  await mkdir(resolve(root, '.kumoh'), { recursive: true });
   const tempPath = resolve(root, '.kumoh', 'drizzle.config.json');
-  writeFileSync(
+  await writeFile(
     tempPath,
     JSON.stringify(
       {
@@ -77,23 +82,33 @@ function writeTempConfig(
   return tempPath;
 }
 
-function cleanupTempConfig() {
+async function cleanupTempConfig(): Promise<void> {
   const tempPath = resolve(root, '.kumoh', 'drizzle.config.json');
-  if (existsSync(tempPath)) {
-    unlinkSync(tempPath);
-  }
-}
-
-function runDrizzleKit(args: string) {
   try {
-    execSync(`npx drizzle-kit ${args}`, { cwd: root, stdio: 'inherit' });
+    await unlink(tempPath);
   } catch {
-    process.exit(1);
+    // already cleaned up
   }
 }
 
-function requireLocalDb(): string {
-  const dbPath = getLocalDbPath();
+async function runDrizzleKit(args: string): Promise<void> {
+  const child = spawn(`npx drizzle-kit ${args}`, {
+    cwd: root,
+    stdio: 'inherit',
+    shell: true,
+  });
+
+  const exitCode = await new Promise<number>((resolve) => {
+    child.on('close', (code) => resolve(code ?? 1));
+  });
+
+  if (exitCode !== 0) {
+    process.exit(exitCode);
+  }
+}
+
+async function requireLocalDb(): Promise<string> {
+  const dbPath = await getLocalDbPath();
   if (!dbPath) {
     console.error(
       'No local D1 database found. Run `vite dev` first to initialize it.'
@@ -103,19 +118,17 @@ function requireLocalDb(): string {
   return dbPath;
 }
 
-// --- Commands ---
-
 const generate = defineCommand({
   meta: {
     name: 'generate',
     description: 'Generate SQL migration files from your schema',
   },
-  run() {
-    const config = loadKumohJson();
-    mkdirSync(getMigrationsDir(config), { recursive: true });
-    const tempConfig = writeTempConfig(config);
-    runDrizzleKit(`generate --config=${tempConfig}`);
-    cleanupTempConfig();
+  async run() {
+    const config = await loadKumohJson();
+    await mkdir(getMigrationsDir(config), { recursive: true });
+    const tempConfig = await writeTempConfig(config);
+    await runDrizzleKit(`generate --config=${tempConfig}`);
+    await cleanupTempConfig();
   },
 });
 
@@ -124,14 +137,14 @@ const migrate = defineCommand({
     name: 'migrate',
     description: 'Push schema changes to local D1 database',
   },
-  run() {
-    const config = loadKumohJson();
-    const dbPath = requireLocalDb();
-    const tempConfig = writeTempConfig(config, {
+  async run() {
+    const config = await loadKumohJson();
+    const dbPath = await requireLocalDb();
+    const tempConfig = await writeTempConfig(config, {
       dbCredentials: { url: dbPath },
     });
-    runDrizzleKit(`push --config=${tempConfig}`);
-    cleanupTempConfig();
+    await runDrizzleKit(`push --config=${tempConfig}`);
+    await cleanupTempConfig();
   },
 });
 
@@ -140,14 +153,14 @@ const studio = defineCommand({
     name: 'studio',
     description: 'Open Drizzle Studio to browse your local database',
   },
-  run() {
-    const config = loadKumohJson();
-    const dbPath = requireLocalDb();
-    const tempConfig = writeTempConfig(config, {
+  async run() {
+    const config = await loadKumohJson();
+    const dbPath = await requireLocalDb();
+    const tempConfig = await writeTempConfig(config, {
       dbCredentials: { url: dbPath },
     });
-    runDrizzleKit(`studio --config=${tempConfig}`);
-    cleanupTempConfig();
+    await runDrizzleKit(`studio --config=${tempConfig}`);
+    await cleanupTempConfig();
   },
 });
 
