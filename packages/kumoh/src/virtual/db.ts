@@ -1,5 +1,5 @@
 export function generateDbModule(): string {
-  return `
+  return /* js */ `
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 
