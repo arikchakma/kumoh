@@ -1,4 +1,4 @@
-import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
 import path from "node:path";
 import {
   VIRTUAL_DB,
@@ -15,7 +15,7 @@ import { findRoutesEntry, scanCrons, scanQueues } from "./scanner.js";
 import { generateWorkerEntry } from "./codegen.js";
 import type { MakeVoidConfig } from "./types.js";
 
-type ModuleGenerator = (config: MakeVoidConfig, isDev: boolean) => string;
+type ModuleGenerator = (config: MakeVoidConfig) => string;
 
 const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
   [VIRTUAL_DB]: generateDbModule,
@@ -26,7 +26,6 @@ const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
 
 export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
   let root: string;
-  let isDev = false;
 
   return {
     name: "make-void:virtual-modules",
@@ -34,7 +33,6 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
     configResolved(cfg: ResolvedConfig) {
       root = cfg.root;
-      isDev = cfg.command === "serve";
     },
 
     resolveId(id: string) {
@@ -44,12 +42,12 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
     },
 
     load(id: string) {
-      if (!id.startsWith("\0make-void/")) return null;
+      if (!id.startsWith("\0void/")) return null;
 
       const moduleId = id.slice(1);
 
       if (MODULE_GENERATORS[moduleId]) {
-        return MODULE_GENERATORS[moduleId](config, isDev);
+        return MODULE_GENERATORS[moduleId](config);
       }
 
       if (moduleId === VIRTUAL_ENTRY) {
@@ -65,116 +63,6 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
       }
 
       return null;
-    },
-  };
-}
-
-export function createDevServerPlugin(config: MakeVoidConfig): Plugin {
-  let root: string;
-
-  return {
-    name: "make-void:dev-server",
-
-    configResolved(cfg: ResolvedConfig) {
-      root = cfg.root;
-    },
-
-    configureServer(server: ViteDevServer) {
-      server.middlewares.use(async (req, res, next) => {
-        const routesEntry = findRoutesEntry(root, config.routesEntry);
-        if (!routesEntry) return next();
-
-        try {
-          const mod = await server.ssrLoadModule(
-            path.resolve(root, routesEntry)
-          );
-          const app = mod.default;
-          if (!app || typeof app.fetch !== "function") return next();
-
-          // Build a Web Request from the Node.js IncomingMessage
-          const url = new URL(req.url!, `http://${req.headers.host}`);
-          const method = req.method!.toLowerCase();
-          const body =
-            method !== "get" && method !== "head"
-              ? await readBody(req)
-              : undefined;
-
-          const webRequest = new Request(url.toString(), {
-            method: req.method,
-            headers: Object.entries(req.headers).reduce((h, [k, v]) => {
-              if (v) h.set(k, Array.isArray(v) ? v.join(", ") : v);
-              return h;
-            }, new Headers()),
-            body,
-          });
-
-          // Call the Hono app's fetch handler
-          const response: Response = await app.fetch(webRequest);
-
-          // Only fall through to Vite when Hono has no matching route
-          // (its default 404 has no content-type). If a handler explicitly
-          // returned 404 (e.g. c.json({error}, 404)), that's a real response.
-          if (
-            response.status === 404 &&
-            !response.headers.get("content-type")
-          ) {
-            return next();
-          }
-
-          res.statusCode = response.status;
-          response.headers.forEach((value, key) => {
-            res.setHeader(key, value);
-          });
-          const responseBody = await response.arrayBuffer();
-          res.end(Buffer.from(responseBody));
-        } catch (err) {
-          console.error("[make-void] Error:", err);
-          next();
-        }
-      });
-    },
-  };
-}
-
-function readBody(req: import("node:http").IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (chunk: Buffer) => (data += chunk.toString()));
-    req.on("end", () => resolve(data));
-    req.on("error", reject);
-  });
-}
-
-export function createScannerPlugin(config: MakeVoidConfig): Plugin {
-  let root: string;
-
-  return {
-    name: "make-void:scanner",
-
-    configResolved(cfg: ResolvedConfig) {
-      root = cfg.root;
-    },
-
-    configureServer(server) {
-      const dirs = [config.cronsDir ?? "crons", config.queuesDir ?? "queues"]
-        .map((d) => path.resolve(root, d))
-        .filter((d) => {
-          try {
-            return require("node:fs").existsSync(d);
-          } catch {
-            return false;
-          }
-        });
-
-      for (const dir of dirs) {
-        server.watcher.add(dir);
-      }
-
-      // Also watch the routes entry
-      const routesEntry = findRoutesEntry(root, config.routesEntry);
-      if (routesEntry) {
-        server.watcher.add(path.resolve(root, routesEntry));
-      }
     },
   };
 }

@@ -1,4 +1,4 @@
-declare module "make-void/db" {
+declare module "void/db" {
   /** Tagged template for SQL queries against the D1 binding */
   export function sql(
     strings: TemplateStringsArray,
@@ -9,17 +9,17 @@ declare module "make-void/db" {
   export const db: D1Database;
 }
 
-declare module "make-void/kv" {
+declare module "void/kv" {
   /** Proxy to the raw KVNamespace binding */
   export const kv: KVNamespace;
 }
 
-declare module "make-void/storage" {
+declare module "void/storage" {
   /** Proxy to the raw R2Bucket binding */
   export const storage: R2Bucket;
 }
 
-declare module "make-void/queue" {
+declare module "void/queue" {
   /** Proxy to the raw Queue binding */
   export const queue: Queue;
 }

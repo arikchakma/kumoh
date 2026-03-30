@@ -1,8 +1,15 @@
 import { Hono } from "hono";
-import { sql } from "make-void/db";
-import { kv } from "make-void/kv";
+import { db, sql } from "void/db";
 
 const app = new Hono();
+
+app.get("/api/setup", async (c) => {
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
+    CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT);
+  `);
+  return c.json({ ok: true });
+});
 
 app.get("/api/hello", async (c) => {
   await sql`INSERT INTO visits (path) VALUES (${"/api/hello"})`;
@@ -21,7 +28,6 @@ app.get("/api/users", async (c) => {
 app.get("/api/users/:id", async (c) => {
   const { id } = c.req.param();
   const result = await sql`SELECT id, name, email FROM users WHERE id = ${id}`;
-
   if (!result.results.length) {
     return c.json({ error: `User not found: ${id}` }, 404);
   }
@@ -32,11 +38,6 @@ app.post("/api/users", async (c) => {
   const body = await c.req.json();
   await sql`INSERT INTO users (name, email) VALUES (${body.name}, ${body.email})`;
   return c.json({ created: true }, 201);
-});
-
-app.post("/api/hello", async (c) => {
-  const body = await c.req.json();
-  return c.json({ echo: body });
 });
 
 export default app;

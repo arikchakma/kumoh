@@ -1,5 +1,5 @@
 {
-  "name": "make-void",
+  "name": "void",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,35 +10,27 @@
       "import": "./dist/index.js"
     },
     "./db": {
-      "types": "./virtual.d.ts"
+      "types": "./dist/index.d.ts"
     },
     "./kv": {
-      "types": "./virtual.d.ts"
+      "types": "./dist/index.d.ts"
     },
     "./storage": {
-      "types": "./virtual.d.ts"
+      "types": "./dist/index.d.ts"
     },
     "./queue": {
-      "types": "./virtual.d.ts"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "db": ["./virtual.d.ts"],
-      "kv": ["./virtual.d.ts"],
-      "storage": ["./virtual.d.ts"],
-      "queue": ["./virtual.d.ts"]
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
-    "dist",
-    "virtual.d.ts"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
   },
   "dependencies": {
+    "@cloudflare/vite-plugin": "^1.0.0",
     "fast-glob": "^3.3.3"
   },
   "peerDependencies": {

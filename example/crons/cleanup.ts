@@ -1,5 +1,5 @@
-import type { CronContext } from "make-void";
-import { sql } from "make-void/db";
+import type { CronContext } from "void";
+import { sql } from "void/db";
 
 export const schedule = "0 */6 * * *";
 

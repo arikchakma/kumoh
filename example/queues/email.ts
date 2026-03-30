@@ -1,4 +1,4 @@
-import type { QueueContext } from "make-void";
+import type { QueueContext } from "void";
 
 export const queueName = "EMAIL_QUEUE";
 
