@@ -4,12 +4,13 @@ import { existsSync } from "node:fs";
 import type { ScannedCron, ScannedQueue } from "./types.js";
 
 /**
- * Find the Hono app entry: routes.ts, routes/index.ts, or configured path.
+ * Find the Hono app entry. If routesEntry is provided (absolute or relative),
+ * check it exists. Otherwise search for common defaults relative to root.
  */
 export function findRoutesEntry(root: string, routesEntry?: string): string | null {
   if (routesEntry) {
-    const abs = path.resolve(root, routesEntry);
-    return existsSync(abs) ? routesEntry : null;
+    const abs = path.isAbsolute(routesEntry) ? routesEntry : path.resolve(root, routesEntry);
+    return existsSync(abs) ? abs : null;
   }
 
   const candidates = [
@@ -20,16 +21,15 @@ export function findRoutesEntry(root: string, routesEntry?: string): string | nu
   ];
 
   for (const candidate of candidates) {
-    if (existsSync(path.resolve(root, candidate))) {
-      return candidate;
-    }
+    const abs = path.resolve(root, candidate);
+    if (existsSync(abs)) return abs;
   }
 
   return null;
 }
 
 export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
-  const absDir = path.resolve(root, cronsDir);
+  const absDir = path.isAbsolute(cronsDir) ? cronsDir : path.resolve(root, cronsDir);
   if (!existsSync(absDir)) return [];
   const files = fg.sync("**/*.{ts,js}", { cwd: absDir });
 
@@ -38,12 +38,12 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
     .map((file) => ({
       filePath: path.resolve(absDir, file),
       name: path.basename(file, path.extname(file)),
-      importPath: "./" + path.posix.join(cronsDir, file),
+      importPath: path.resolve(absDir, file),
     }));
 }
 
 export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
-  const absDir = path.resolve(root, queuesDir);
+  const absDir = path.isAbsolute(queuesDir) ? queuesDir : path.resolve(root, queuesDir);
   if (!existsSync(absDir)) return [];
   const files = fg.sync("**/*.{ts,js}", { cwd: absDir });
 
@@ -52,6 +52,6 @@ export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
     .map((file) => ({
       filePath: path.resolve(absDir, file),
       name: path.basename(file, path.extname(file)),
-      importPath: "./" + path.posix.join(queuesDir, file),
+      importPath: path.resolve(absDir, file),
     }));
 }

@@ -54,12 +54,12 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
         const routesEntry = findRoutesEntry(root, config.routesEntry);
         if (!routesEntry) {
           throw new Error(
-            "[make-void] No routes entry found. Create routes.ts or routes/index.ts"
+            "[make-void] No routes entry found. Create app/routes/index.ts"
           );
         }
         const crons = scanCrons(root, config.cronsDir ?? "crons");
         const queues = scanQueues(root, config.queuesDir ?? "queues");
-        return generateWorkerEntry("./" + routesEntry, crons, queues);
+        return generateWorkerEntry(routesEntry, crons, queues);
       }
 
       return null;
@@ -75,10 +75,7 @@ export function createAliasPlugin(config: MakeVoidConfig): Plugin {
       return {
         resolve: {
           alias: {
-            "@schema": path.resolve(
-              process.cwd(),
-              config.schemaPath ?? "db/schema.ts"
-            ),
+            "@schema": config.schemaPath ?? path.resolve(process.cwd(), "app/db/schema.ts"),
           },
         },
       };

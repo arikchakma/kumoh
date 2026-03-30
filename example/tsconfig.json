@@ -3,8 +3,8 @@
   "compilerOptions": {
     "types": ["@cloudflare/workers-types"],
     "paths": {
-      "@schema": ["./db/schema.ts"]
+      "@schema": ["./app/db/schema.ts"]
     }
   },
-  "include": ["routes", "db", "crons", "queues", "middleware", "*.ts"]
+  "include": ["app", "*.ts"]
 }

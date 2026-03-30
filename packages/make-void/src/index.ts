@@ -27,12 +27,12 @@ function loadVoidJson(root: string): VoidJson {
   return JSON.parse(readFileSync(configPath, "utf-8"));
 }
 
-function voidJsonToConfig(raw: VoidJson): MakeVoidConfig {
+function voidJsonToConfig(raw: VoidJson, root: string): MakeVoidConfig {
   return {
-    routesEntry: raw.routes,
-    cronsDir: raw.crons,
-    queuesDir: raw.queues,
-    schemaPath: raw.schema,
+    routesEntry: raw.routes ? path.resolve(root, raw.routes) : undefined,
+    cronsDir: path.resolve(root, raw.crons ?? "app/crons"),
+    queuesDir: path.resolve(root, raw.queues ?? "app/queues"),
+    schemaPath: path.resolve(root, raw.schema ?? "app/db/schema.ts"),
     bindings: raw.bindings,
   };
 }
@@ -101,16 +101,24 @@ function buildWorkerConfig(raw: VoidJson) {
 }
 
 export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
-  const raw = loadVoidJson(process.cwd());
-  const config: MakeVoidConfig = { ...voidJsonToConfig(raw), ...userConfig };
+  const root = process.cwd();
+  const raw = loadVoidJson(root);
+  const config: MakeVoidConfig = { ...voidJsonToConfig(raw, root), ...userConfig };
   const workerConfig = buildWorkerConfig(raw);
+  const envName = (raw.name ?? "make-void-app").replace(/-/g, "_");
 
   return [
-    // Our virtual modules MUST come first (enforce: "pre") so they resolve
-    // before the Cloudflare plugin tries to load them in workerd
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
-    // The Cloudflare plugin runs workerd/Miniflare with real local bindings
     ...cloudflare({ config: workerConfig, persistState: { path: ".void" } }),
+    // Output directly to dist/ instead of dist/<worker_name>/
+    {
+      name: "make-void:output",
+      config: () => ({
+        environments: {
+          [envName]: { build: { outDir: "dist" } },
+        },
+      }),
+    } as Plugin,
   ];
 }
