@@ -8,17 +8,17 @@ In Cloudflare Workers, every binding (D1 database, KV store, R2 storage, queues)
 export default {
   async fetch(request, env, ctx) {
     // You have to thread `env` through everything
-    const result = await env.DB.prepare("SELECT * FROM users").all();
-    const cached = await env.KV.get("key");
-  }
+    const result = await env.DB.prepare('SELECT * FROM users').all();
+    const cached = await env.KV.get('key');
+  },
 };
 ```
 
 This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. Void solves this by letting you write:
 
 ```ts
-import { db, eq } from "void/db";
-import { users } from "@schema";
+import { db, eq } from 'void/db';
+import { users } from '@schema';
 
 // Type-safe queries -- no env threading
 const allUsers = await db.select().from(users);
@@ -34,8 +34,8 @@ const user = await db.select().from(users).where(eq(users.id, 1));
 Since March 2025, Cloudflare Workers supports importing `env` directly as a module:
 
 ```ts
-import { env } from "cloudflare:workers";
-const result = await env.DB.prepare("SELECT * FROM users").all();
+import { env } from 'cloudflare:workers';
+const result = await env.DB.prepare('SELECT * FROM users').all();
 ```
 
 This is a workerd-native feature -- no AsyncLocalStorage, no request context wrapping. It works at module scope. Void automates this pattern via a Vite plugin that generates wrapper modules from your config, powered by Drizzle ORM for type-safe database access.
@@ -46,9 +46,8 @@ This is a workerd-native feature -- no AsyncLocalStorage, no request context wra
 
 Vite plugins have two hooks that let you create modules that **don't exist on disk**:
 
-1. **`resolveId(id)`** -- Vite calls this when it encounters an import. If your plugin returns a value, Vite uses that as the resolved module ID instead of looking for a file. By convention, virtual modules are prefixed with `\0` (null byte) to tell other plugins "this isn't a real file path."
-
-2. **`load(id)`** -- Vite calls this to get the module's source code. Your plugin returns a **string of JavaScript** that Vite treats as if it were reading a file.
+1. `**resolveId(id)`\*\* -- Vite calls this when it encounters an import. If your plugin returns a value, Vite uses that as the resolved module ID instead of looking for a file. By convention, virtual modules are prefixed with `\0` (null byte) to tell other plugins "this isn't a real file path."
+2. `**load(id)**` -- Vite calls this to get the module's source code. Your plugin returns a **string of JavaScript** that Vite treats as if it were reading a file.
 
 So when your code says `import { db } from "void/db"`:
 
@@ -69,10 +68,10 @@ Here's the actual implementation in `packages/void/src/plugin.ts`:
 
 ```ts
 const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
-  "void/db":      generateDbModule,
-  "void/kv":      generateKvModule,
+  "void/db": generateDbModule,
+  "void/kv": generateKvModule,
   "void/storage": generateStorageModule,
-  "void/queue":   generateQueueModule,
+  "void/queue": generateQueueModule,
 };
 
 export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
@@ -80,8 +79,8 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
   return {
     name: "void:virtual-modules",
-    enforce: "pre",  // Run BEFORE Vite's built-in resolver
-
+    enforce: "pre", // Run BEFORE Vite's built-in resolver
+a
     configResolved(cfg: ResolvedConfig) {
       root = cfg.root;
     },
@@ -120,8 +119,8 @@ Each virtual module generator is a function that returns a **string of JavaScrip
 The generated code for `void/db`:
 
 ```ts
-import { env } from "cloudflare:workers";
-import { drizzle } from "drizzle-orm/d1";
+import { env } from 'cloudflare:workers';
+import { drizzle } from 'drizzle-orm/d1';
 
 // Drizzle ORM instance pre-configured with D1
 export const db = drizzle(env.DB);
@@ -130,17 +129,47 @@ export const db = drizzle(env.DB);
 export const d1 = env.DB;
 
 // Re-export query operators
-export { eq, ne, gt, gte, lt, lte, and, or, not, asc, desc,
-  isNull, isNotNull, inArray, notInArray, between, like, sql,
-  count, sum, avg, min, max } from "drizzle-orm";
+export {
+  eq,
+  ne,
+  gt,
+  gte,
+  lt,
+  lte,
+  and,
+  or,
+  not,
+  asc,
+  desc,
+  isNull,
+  isNotNull,
+  inArray,
+  notInArray,
+  between,
+  like,
+  sql,
+  count,
+  sum,
+  avg,
+  min,
+  max,
+} from 'drizzle-orm';
 
 // Re-export schema builders
-export { sqliteTable, text, integer, real, blob,
-  primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+export {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  blob,
+  primaryKey,
+  uniqueIndex,
+  index,
+} from 'drizzle-orm/sqlite-core';
 ```
 
-- **`db`** is a Drizzle ORM instance wrapping the D1 binding. You use it for type-safe queries: `db.select().from(users).where(eq(users.id, 1))`.
-- **`d1`** is the raw D1 binding for escape-hatch operations like `d1.exec("CREATE TABLE ...")`.
+- `**db**` is a Drizzle ORM instance wrapping the D1 binding. You use it for type-safe queries: `db.select().from(users).where(eq(users.id, 1))`.
+- `**d1**` is the raw D1 binding for escape-hatch operations like `d1.exec("CREATE TABLE ...")`.
 - **Operators** (`eq`, `desc`, `count`, etc.) are re-exported so you import everything from one place.
 - **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) are re-exported so your schema file also imports from `void/db`.
 
@@ -167,22 +196,37 @@ Same pattern for KV, R2, and Queue -- each wraps `env.BINDING_NAME` with a Proxy
 
 ```ts
 // void/kv -> wraps env.KV
-import { env } from "cloudflare:workers";
-export const kv = new Proxy({}, {
-  get(_, prop) { return Reflect.get(env.KV, prop); }
-});
+import { env } from 'cloudflare:workers';
+export const kv = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      return Reflect.get(env.KV, prop);
+    },
+  }
+);
 
 // void/storage -> wraps env.BUCKET
-import { env } from "cloudflare:workers";
-export const storage = new Proxy({}, {
-  get(_, prop) { return Reflect.get(env.BUCKET, prop); }
-});
+import { env } from 'cloudflare:workers';
+export const storage = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      return Reflect.get(env.BUCKET, prop);
+    },
+  }
+);
 
 // void/queue -> wraps env.QUEUE
-import { env } from "cloudflare:workers";
-export const queue = new Proxy({}, {
-  get(_, prop) { return Reflect.get(env.QUEUE, prop); }
-});
+import { env } from 'cloudflare:workers';
+export const queue = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      return Reflect.get(env.QUEUE, prop);
+    },
+  }
+);
 ```
 
 ---
@@ -222,18 +266,20 @@ The `makeVoid()` plugin reads this file and **generates the Cloudflare worker co
 ```ts
 function buildWorkerConfig(raw: VoidJson) {
   const workerConfig = {
-    name: raw.name ?? "void-app",
-    main: "void/entry",  // virtual module as worker entry
-    compatibility_date: "2025-03-14",
-    compatibility_flags: ["nodejs_compat"],
+    name: raw.name ?? 'void-app',
+    main: 'void/entry', // virtual module as worker entry
+    compatibility_date: '2025-03-14',
+    compatibility_flags: ['nodejs_compat'],
   };
 
   if (bindings.d1) {
-    workerConfig.d1_databases = [{
-      binding: bindings.d1,
-      database_name: `${raw.name}-db`,
-      database_id: "local",
-    }];
+    workerConfig.d1_databases = [
+      {
+        binding: bindings.d1,
+        database_name: `${raw.name}-db`,
+        database_id: 'local',
+      },
+    ];
   }
   // ... same for KV, R2, queues
 }
@@ -250,37 +296,37 @@ The `@cloudflare/vite-plugin` accepts this config object directly -- no file on 
 Your schema lives in `app/db/schema.ts` and imports everything from `void/db`:
 
 ```ts
-import { sqliteTable, text, integer } from "void/db";
+import { sqliteTable, text, integer } from 'void/db';
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  email: text("email").notNull(),
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
 });
 
-export const visits = sqliteTable("visits", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  path: text("path"),
+export const visits = sqliteTable('visits', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  path: text('path'),
 });
 ```
 
 The `@schema` alias (configured by the plugin via `resolve.alias`) lets you import your tables anywhere:
 
 ```ts
-import { users, visits } from "@schema";
+import { users, visits } from '@schema';
 ```
 
 ### Type-Safe Queries
 
 ```ts
-import { db, eq, count, d1 } from "void/db";
-import { users, visits } from "@schema";
+import { db, eq, count, d1 } from 'void/db';
+import { users, visits } from '@schema';
 
 // Setup (raw D1 for DDL)
 await d1.exec(`CREATE TABLE IF NOT EXISTS users (...)`);
 
 // Insert
-await db.insert(users).values({ name: "Alice", email: "alice@test.com" });
+await db.insert(users).values({ name: 'Alice', email: 'alice@test.com' });
 
 // Select with filter
 const user = await db.select().from(users).where(eq(users.id, 1));
@@ -301,6 +347,7 @@ void db studio     # Open Drizzle Studio to browse your local database
 ```
 
 Under the hood, each command:
+
 1. Reads `void.json` to find the schema path
 2. Writes a temporary drizzle config (`.void-drizzle.config.json`)
 3. Shells out to `drizzle-kit` with the generated config
@@ -326,13 +373,13 @@ COMMANDS
 You write a single Hono app that owns all HTTP routing:
 
 ```ts
-import { Hono } from "hono";
-import { db, eq, count, d1 } from "void/db";
-import { users, visits } from "@schema";
+import { Hono } from 'hono';
+import { db, eq, count, d1 } from 'void/db';
+import { users, visits } from '@schema';
 
 const app = new Hono();
 
-app.get("/api/setup", async (c) => {
+app.get('/api/setup', async (c) => {
   await d1.exec(`
     CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
     CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL);
@@ -340,25 +387,28 @@ app.get("/api/setup", async (c) => {
   return c.json({ ok: true });
 });
 
-app.get("/api/hello", async (c) => {
-  await db.insert(visits).values({ path: "/api/hello" });
+app.get('/api/hello', async (c) => {
+  await db.insert(visits).values({ path: '/api/hello' });
   const result = await db.select({ count: count() }).from(visits);
   return c.json({
-    message: "Hello from Void!",
+    message: 'Hello from Void!',
     visits: result[0].count,
   });
 });
 
-app.get("/api/users/:id", async (c) => {
+app.get('/api/users/:id', async (c) => {
   const { id } = c.req.param();
-  const result = await db.select().from(users).where(eq(users.id, Number(id)));
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, Number(id)));
   if (!result.length) {
     return c.json({ error: `User not found: ${id}` }, 404);
   }
   return c.json(result[0]);
 });
 
-app.post("/api/users", async (c) => {
+app.post('/api/users', async (c) => {
   const body = await c.req.json();
   await db.insert(users).values({ name: body.name, email: body.email });
   return c.json({ created: true }, 201);
@@ -381,10 +431,10 @@ Given `app/routes/index.ts`, `app/crons/cleanup.ts`, and `app/queues/email.ts`, 
 
 ```ts
 // AUTO-GENERATED BY void
-import app from "/absolute/path/to/app/routes/index.ts";
+import app from '/absolute/path/to/app/routes/index.ts';
 
-import * as cron_cleanup from "/absolute/path/to/app/crons/cleanup.ts";
-import * as queue_email from "/absolute/path/to/app/queues/email.ts";
+import * as cron_cleanup from '/absolute/path/to/app/crons/cleanup.ts';
+import * as queue_email from '/absolute/path/to/app/queues/email.ts';
 
 const cronMap = {
   [cron_cleanup.schedule]: cron_cleanup.default,
@@ -405,9 +455,9 @@ async function handleQueue(batch, env, ctx) {
 }
 
 export default {
-  fetch: app.fetch,            // Hono handles all HTTP
-  scheduled: handleScheduled,  // Cron dispatch
-  queue: handleQueue,          // Queue dispatch
+  fetch: app.fetch, // Hono handles all HTTP
+  scheduled: handleScheduled, // Cron dispatch
+  queue: handleQueue, // Queue dispatch
 };
 ```
 
@@ -419,10 +469,10 @@ Each cron file exports its schedule string and a default handler:
 
 ```ts
 // app/crons/cleanup.ts
-import { db, sql, lt } from "void/db";
-import { sessions } from "@schema";
+import { db, sql, lt } from 'void/db';
+import { sessions } from '@schema';
 
-export const schedule = "0 */6 * * *";
+export const schedule = '0 */6 * * *';
 
 export default async function handler(ctx) {
   await db.delete(sessions).where(lt(sessions.expiresAt, sql`datetime('now')`));
@@ -435,7 +485,7 @@ Each queue file exports its queue name and a default handler:
 
 ```ts
 // app/queues/email.ts
-export const queueName = "EMAIL_QUEUE";
+export const queueName = 'EMAIL_QUEUE';
 
 export default async function handler(ctx) {
   for (const message of ctx.batch.messages) {
@@ -451,31 +501,61 @@ export default async function handler(ctx) {
 TypeScript doesn't know what `"void/db"` exports since it's a virtual module. We ship ambient type declarations:
 
 ```ts
-declare module "void/db" {
-  import type { DrizzleD1Database } from "drizzle-orm/d1";
+declare module 'void/db' {
+  import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
   export const db: DrizzleD1Database;
   export const d1: D1Database;
 
   // Query operators
-  export { eq, ne, gt, gte, lt, lte, and, or, not, asc, desc,
-    isNull, isNotNull, inArray, notInArray, between, like, sql,
-    count, sum, avg, min, max } from "drizzle-orm";
+  export {
+    eq,
+    ne,
+    gt,
+    gte,
+    lt,
+    lte,
+    and,
+    or,
+    not,
+    asc,
+    desc,
+    isNull,
+    isNotNull,
+    inArray,
+    notInArray,
+    between,
+    like,
+    sql,
+    count,
+    sum,
+    avg,
+    min,
+    max,
+  } from 'drizzle-orm';
 
   // Schema builders
-  export { sqliteTable, text, integer, real, blob,
-    primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+  export {
+    sqliteTable,
+    text,
+    integer,
+    real,
+    blob,
+    primaryKey,
+    uniqueIndex,
+    index,
+  } from 'drizzle-orm/sqlite-core';
 }
 
-declare module "void/kv" {
+declare module 'void/kv' {
   export const kv: KVNamespace;
 }
 
-declare module "void/storage" {
+declare module 'void/storage' {
   export const storage: R2Bucket;
 }
 
-declare module "void/queue" {
+declare module 'void/queue' {
   export const queue: Queue;
 }
 ```
@@ -515,27 +595,30 @@ export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
   return [
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
-    ...cloudflare({ config: workerConfig, persistState: { path: ".void" } }),
+    ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
     // Flatten build output to dist/ instead of dist/<worker_name>/
-    { name: "void:output", config: () => ({
-      environments: { [envName]: { build: { outDir: "dist" } } },
-    }) },
+    {
+      name: 'void:output',
+      config: () => ({
+        environments: { [envName]: { build: { outDir: 'dist' } } },
+      }),
+    },
   ];
 }
 ```
 
-| Plugin | Hook | What It Does |
-|---|---|---|
-| `void:virtual-modules` | `resolveId` + `load` | Intercepts `void/db` etc., returns generated JS with Drizzle + `cloudflare:workers` |
-| `void:alias` | `config` | Maps `@schema` to `app/db/schema.ts` |
-| `@cloudflare/vite-plugin` | Various | Runs workerd/Miniflare with real D1, KV, R2, queues locally |
-| `void:output` | `config` | Flattens build output to `dist/` |
+| Plugin                    | Hook                 | What It Does                                                                        |
+| ------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
+| `void:virtual-modules`    | `resolveId` + `load` | Intercepts `void/db` etc., returns generated JS with Drizzle + `cloudflare:workers` |
+| `void:alias`              | `config`             | Maps `@schema` to `app/db/schema.ts`                                                |
+| `@cloudflare/vite-plugin` | Various              | Runs workerd/Miniflare with real D1, KV, R2, queues locally                         |
+| `void:output`             | `config`             | Flattens build output to `dist/`                                                    |
 
 The user's `vite.config.ts` is just:
 
 ```ts
-import { defineConfig } from "vite";
-import { makeVoid } from "void";
+import { defineConfig } from 'vite';
+import { makeVoid } from 'void';
 
 export default defineConfig({
   plugins: [makeVoid()],
