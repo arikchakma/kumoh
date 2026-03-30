@@ -45,6 +45,7 @@
     "better-sqlite3": "^11.0.0",
     "citty": "^0.1.6",
     "fast-glob": "^3.3.3",
+    "knitwork": "^1.2.0",
     "oxc-parser": "^0.121.0"
   },
   "devDependencies": {
