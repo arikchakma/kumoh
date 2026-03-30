@@ -10,7 +10,7 @@ import {
   VIRTUAL_ENTRY,
 } from './constants.js';
 import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
-import type { MakeVoidConfig } from './types.js';
+import type { KumohConfig } from './types.js';
 import { generateDbModule } from './virtual/db.js';
 import { generateKvModule } from './virtual/kv.js';
 import { generateStorageModule } from './virtual/storage.js';
@@ -23,7 +23,7 @@ const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
   [VIRTUAL_STORAGE]: generateStorageModule,
 };
 
-export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
+export function createVirtualModulesPlugin(config: KumohConfig): Plugin {
   let root: string;
 
   return {
@@ -72,7 +72,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
   };
 }
 
-export function createAliasPlugin(config: MakeVoidConfig): Plugin {
+export function createAliasPlugin(config: KumohConfig): Plugin {
   return {
     name: 'kumoh:alias',
 

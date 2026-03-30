@@ -1,4 +1,4 @@
-export interface MakeVoidConfig {
+export interface KumohConfig {
   /** Path to the Hono app entry. Default: "routes.ts" or "routes/index.ts" */
   routesEntry?: string;
   /** Directory containing cron handlers. Default: "crons" */

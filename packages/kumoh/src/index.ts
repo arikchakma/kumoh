@@ -6,11 +6,9 @@ import type { Plugin } from 'vite';
 
 import { createVirtualModulesPlugin, createAliasPlugin } from './plugin.js';
 import { scanCrons } from './scanner.js';
-import type { MakeVoidConfig } from './types.js';
+import type { KumohConfig } from './types.js';
 
-export type { MakeVoidConfig } from './types.js';
-export type { ScheduledController } from './scheduled.js';
-export type { QueueBatch, QueueMessage } from './queue.js';
+export type { KumohConfig } from './types.js';
 export { defineScheduled } from './scheduled.js';
 export { defineQueue } from './queue.js';
 
@@ -37,7 +35,7 @@ function loadConfig(root: string): KumohJson {
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
-function toPluginConfig(raw: KumohJson, root: string): MakeVoidConfig {
+function toPluginConfig(raw: KumohJson, root: string): KumohConfig {
   return {
     routesEntry: raw.routes ? path.resolve(root, raw.routes) : undefined,
     cronsDir: path.resolve(root, raw.crons ?? 'app/crons'),
@@ -110,10 +108,10 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
   return workerConfig;
 }
 
-export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
+export function kumoh(userConfig?: KumohConfig): Plugin[] {
   const root = process.cwd();
   const raw = loadConfig(root);
-  const config: MakeVoidConfig = {
+  const config: KumohConfig = {
     ...toPluginConfig(raw, root),
     ...userConfig,
   };
