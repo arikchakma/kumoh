@@ -7,5 +7,9 @@ export const queue = new Proxy({}, {
     return Reflect.get(env.QUEUE, prop);
   }
 });
+
+export function defineQueue(handler) {
+  return handler;
+}
 `;
 }

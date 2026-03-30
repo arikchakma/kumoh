@@ -1,6 +1,6 @@
 import { users, visits } from '@schema';
 import { Hono } from 'hono';
-import { db, eq, count } from 'kumoh/db';
+import { db, eq } from 'kumoh/db';
 
 const app = new Hono();
 

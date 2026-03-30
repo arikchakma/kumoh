@@ -1,4 +1,4 @@
-import type { QueueContext } from 'kumoh';
+import { defineQueue } from 'kumoh/queue';
 
 interface EmailMessage {
   to: string;
@@ -6,8 +6,8 @@ interface EmailMessage {
   body: string;
 }
 
-export default async function handler(ctx: QueueContext<EmailMessage>) {
-  for (const message of ctx.batch.messages) {
+export default defineQueue<EmailMessage>(async (batch) => {
+  for (const message of batch.messages) {
     try {
       console.log(
         `Sending email to ${message.body.to}: ${message.body.subject}`
@@ -18,4 +18,4 @@ export default async function handler(ctx: QueueContext<EmailMessage>) {
       message.retry();
     }
   }
-}
+});

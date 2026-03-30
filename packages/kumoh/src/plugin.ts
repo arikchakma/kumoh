@@ -7,14 +7,12 @@ import {
   VIRTUAL_DB,
   VIRTUAL_KV,
   VIRTUAL_STORAGE,
-  VIRTUAL_QUEUE,
   VIRTUAL_ENTRY,
 } from './constants.js';
 import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
 import type { MakeVoidConfig } from './types.js';
 import { generateDbModule } from './virtual/db.js';
 import { generateKvModule } from './virtual/kv.js';
-import { generateQueueModule } from './virtual/queue.js';
 import { generateStorageModule } from './virtual/storage.js';
 
 type ModuleGenerator = () => string;
@@ -23,7 +21,6 @@ const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
   [VIRTUAL_DB]: generateDbModule,
   [VIRTUAL_KV]: generateKvModule,
   [VIRTUAL_STORAGE]: generateStorageModule,
-  [VIRTUAL_QUEUE]: generateQueueModule,
 };
 
 export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {

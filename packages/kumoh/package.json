@@ -16,6 +16,10 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
+    "./cron": {
+      "types": "./dist/cron.d.mts",
+      "default": "./dist/cron.mjs"
+    },
     "./db": {
       "types": "./virtual.d.ts",
       "default": "./dist/db.mjs"
@@ -27,7 +31,8 @@
       "types": "./virtual.d.ts"
     },
     "./queue": {
-      "types": "./virtual.d.ts"
+      "types": "./virtual.d.ts",
+      "default": "./dist/queue.mjs"
     }
   },
   "scripts": {

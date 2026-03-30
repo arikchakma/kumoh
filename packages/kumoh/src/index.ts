@@ -7,7 +7,11 @@ import type { Plugin } from 'vite';
 import { createVirtualModulesPlugin, createAliasPlugin } from './plugin.js';
 import type { MakeVoidConfig } from './types.js';
 
-export type { MakeVoidConfig, CronContext, QueueContext } from './types.js';
+export type { MakeVoidConfig } from './types.js';
+export type { ScheduledController } from './scheduled.js';
+export type { QueueBatch, QueueMessage } from './queue.js';
+export { defineScheduled } from './scheduled.js';
+export { defineQueue } from './queue.js';
 
 interface KumohJson {
   name?: string;
@@ -25,7 +29,7 @@ const BINDING_NAMES = {
 } as const;
 
 function loadConfig(root: string): KumohJson {
-  const configPath = path.resolve(root, 'void.json');
+  const configPath = path.resolve(root, 'kumoh.json');
   if (!existsSync(configPath)) {
     return {};
   }
@@ -107,7 +111,7 @@ export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
   return [
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
-    ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
+    ...cloudflare({ config: workerConfig, persistState: { path: '.kumoh' } }),
     {
       name: 'kumoh:output',
       config: () => ({

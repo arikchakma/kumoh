@@ -60,4 +60,61 @@ declare module 'kumoh/storage' {
 declare module 'kumoh/queue' {
   /** Proxy to the raw Queue binding */
   export const queue: Queue;
+
+  export interface QueueMessage<T = unknown> {
+    readonly id: string;
+    readonly timestamp: Date;
+    readonly body: T;
+    ack(): void;
+    retry(): void;
+  }
+
+  export interface QueueBatch<T = unknown> {
+    readonly queue: string;
+    readonly messages: ReadonlyArray<QueueMessage<T>>;
+    ackAll(): void;
+    retryAll(): void;
+  }
+
+  export interface ExecutionContext {
+    waitUntil(promise: Promise<unknown>): void;
+    passThroughOnException(): void;
+  }
+
+  export function defineQueue<T = unknown, Env = unknown>(
+    handler: (
+      batch: QueueBatch<T>,
+      env: Env,
+      ctx: ExecutionContext
+    ) => void | Promise<void>
+  ): (
+    batch: QueueBatch<T>,
+    env: Env,
+    ctx: ExecutionContext
+  ) => void | Promise<void>;
+}
+
+declare module 'kumoh/cron' {
+  export interface ScheduledController {
+    cron: string;
+    scheduledTime: number;
+    noRetry(): void;
+  }
+
+  export interface ExecutionContext {
+    waitUntil(promise: Promise<unknown>): void;
+    passThroughOnException(): void;
+  }
+
+  export function defineScheduled<Env = unknown>(
+    handler: (
+      controller: ScheduledController,
+      env: Env,
+      ctx: ExecutionContext
+    ) => void | Promise<void>
+  ): (
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ) => void | Promise<void>;
 }

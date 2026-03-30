@@ -6,5 +6,4 @@ export const RESOLVED_PREFIX = '\0kumoh/';
 export const VIRTUAL_DB = 'kumoh/db';
 export const VIRTUAL_KV = 'kumoh/kv';
 export const VIRTUAL_STORAGE = 'kumoh/storage';
-export const VIRTUAL_QUEUE = 'kumoh/queue';
 export const VIRTUAL_ENTRY = 'kumoh/entry';

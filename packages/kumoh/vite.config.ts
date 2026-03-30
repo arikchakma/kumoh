@@ -6,6 +6,8 @@ export default defineConfig({
       index: 'src/index.ts',
       cli: 'src/cli.ts',
       db: 'src/db.ts',
+      cron: 'src/scheduled.ts',
+      queue: 'src/queue.ts',
     },
     outDir: 'dist',
     format: 'esm',

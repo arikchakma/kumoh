@@ -34,14 +34,14 @@ export function generateWorkerEntry(
   if (crons.length) {
     lines.push('const cronMap = {');
     crons.forEach((cron) => {
-      lines.push(`  [cron_${cron.name}.schedule]: cron_${cron.name}.default,`);
+      lines.push(`  [cron_${cron.name}.cron]: cron_${cron.name}.default,`);
     });
     lines.push('};');
     lines.push('');
     lines.push(`async function handleScheduled(controller, env, ctx) {
   const handler = cronMap[controller.cron];
   if (handler) {
-    await handler({ controller });
+    await handler(controller, env, ctx);
   }
 }`);
     lines.push('');
@@ -58,7 +58,7 @@ export function generateWorkerEntry(
     lines.push(`async function handleQueue(batch, env, ctx) {
   const handler = queueMap[batch.queue];
   if (handler) {
-    await handler({ batch });
+    await handler(batch, env, ctx);
   }
 }`);
     lines.push('');
