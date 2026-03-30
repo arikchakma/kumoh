@@ -32,17 +32,16 @@ export function generateWorkerEntry(
 
   // Scheduled handler
   if (crons.length) {
-    lines.push('const cronMap = {');
+    lines.push('const cronMap = {};');
     crons.forEach((cron) => {
-      lines.push(`  [cron_${cron.name}.cron]: cron_${cron.name}.default,`);
+      lines.push(
+        `(cronMap[cron_${cron.name}.cron] ??= []).push(cron_${cron.name}.default);`
+      );
     });
-    lines.push('};');
     lines.push('');
     lines.push(`async function handleScheduled(controller, env, ctx) {
-  const handler = cronMap[controller.cron];
-  if (handler) {
-    await handler(controller, env, ctx);
-  }
+  const handlers = cronMap[controller.cron] ?? [];
+  await Promise.all(handlers.map((h) => h(controller, env, ctx)));
 }`);
     lines.push('');
   }
