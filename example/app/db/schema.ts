@@ -1,21 +1,18 @@
-// Example schema - in a real app this would use drizzle-orm
-// For the POC, we just export table/column name constants
+import { sqliteTable, text, integer } from "void/db";
 
-export const users = {
-  tableName: "users",
-  columns: {
-    id: "id",
-    name: "name",
-    email: "email",
-    createdAt: "created_at",
-  },
-} as const;
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+});
 
-export const sessions = {
-  tableName: "sessions",
-  columns: {
-    id: "id",
-    userId: "user_id",
-    expiresAt: "expires_at",
-  },
-} as const;
+export const visits = sqliteTable("visits", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  path: text("path"),
+});
+
+export const sessions = sqliteTable("sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
+  expiresAt: text("expires_at"),
+});

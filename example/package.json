@@ -4,15 +4,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build"
+    "build": "vite build",
+    "db:generate": "void db generate",
+    "db:migrate": "void db migrate",
+    "db:studio": "void db studio",
+    "void:cli": "void"
   },
   "dependencies": {
     "void": "workspace:*",
-    "hono": "^4.7.0"
+    "hono": "^4.7.0",
+    "drizzle-orm": "^0.38.0"
   },
   "devDependencies": {
     "vite": "^6.0.0",
     "@cloudflare/workers-types": "^4.20250312.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "drizzle-kit": "^0.30.0"
   }
 }

@@ -1,9 +1,10 @@
 import type { CronContext } from "void";
-import { sql } from "void/db";
+import { db, sql, lt } from "void/db";
+import { sessions } from "@schema";
 
 export const schedule = "0 */6 * * *";
 
 export default async function handler(ctx: CronContext) {
-  await sql`DELETE FROM sessions WHERE expires_at < datetime('now')`;
+  await db.delete(sessions).where(lt(sessions.expiresAt, sql`datetime('now')`));
   console.log("Expired sessions cleaned up");
 }
