@@ -1,6 +1,6 @@
 import { sessions } from '@schema';
-import type { CronContext } from 'void';
-import { db, sql, lt } from 'void/db';
+import type { CronContext } from 'kumoh';
+import { db, sql, lt } from 'kumoh/db';
 
 export const schedule = '0 */6 * * *';
 

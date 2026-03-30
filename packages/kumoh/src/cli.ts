@@ -157,7 +157,7 @@ const db = defineCommand({
 });
 
 const main = defineCommand({
-  meta: { name: 'void', version: '0.1.0', description: 'The Void CLI' },
+  meta: { name: 'kumoh', version: '0.1.0', description: 'The Kumoh CLI' },
   subCommands: { db },
 });
 

@@ -1,4 +1,4 @@
-declare module 'void/db' {
+declare module 'kumoh/db' {
   import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
   /** Drizzle ORM instance pre-configured with the D1 binding */
@@ -47,17 +47,17 @@ declare module 'void/db' {
   } from 'drizzle-orm/sqlite-core';
 }
 
-declare module 'void/kv' {
+declare module 'kumoh/kv' {
   /** Proxy to the raw KVNamespace binding */
   export const kv: KVNamespace;
 }
 
-declare module 'void/storage' {
+declare module 'kumoh/storage' {
   /** Proxy to the raw R2Bucket binding */
   export const storage: R2Bucket;
 }
 
-declare module 'void/queue' {
+declare module 'kumoh/queue' {
   /** Proxy to the raw Queue binding */
   export const queue: Queue;
 }

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'void/db';
+import { sqliteTable, text, integer } from 'kumoh/db';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),

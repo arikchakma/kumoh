@@ -4,16 +4,15 @@
   "type": "module",
   "scripts": {
     "build": "vp build",
-    "db:generate": "void db generate",
-    "db:migrate": "void db migrate",
-    "db:studio": "void db studio",
-    "dev": "vp dev",
-    "void:cli": "void"
+    "db:generate": "kumoh db generate",
+    "db:migrate": "kumoh db migrate",
+    "db:studio": "kumoh db studio",
+    "dev": "vp dev"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.0",
     "hono": "^4.7.0",
-    "void": "workspace:*"
+    "kumoh": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250312.0",

@@ -1,24 +1,16 @@
 import { users, visits } from '@schema';
 import { Hono } from 'hono';
-import { db, eq, count, d1 } from 'void/db';
+import { db, eq, count } from 'kumoh/db';
 
 const app = new Hono();
 
-app.get('/api/setup', async (c) => {
-  await d1.exec(`
-    CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
-    CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, expires_at TEXT);
-  `);
-  return c.json({ ok: true });
-});
-
 app.get('/api/hello', async (c) => {
   await db.insert(visits).values({ path: '/api/hello' });
-  const result = await db.select({ count: count() }).from(visits);
+
+  const count = await db.$count(visits);
   return c.json({
-    message: 'Hello from make-void!',
-    visits: result[0].count,
+    message: 'Hello from Kumoh!',
+    visits: count,
   });
 });
 

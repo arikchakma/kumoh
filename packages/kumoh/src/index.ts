@@ -9,7 +9,7 @@ import type { MakeVoidConfig } from './types.js';
 
 export type { MakeVoidConfig, CronContext, QueueContext } from './types.js';
 
-interface VoidJson {
+interface KumohJson {
   name?: string;
   routes?: string;
   crons?: string;
@@ -17,7 +17,6 @@ interface VoidJson {
   schema?: string;
 }
 
-// Fixed binding names — the user never needs to know these
 const BINDING_NAMES = {
   d1: 'DB',
   kv: 'KV',
@@ -25,7 +24,7 @@ const BINDING_NAMES = {
   queue: 'QUEUE',
 } as const;
 
-function loadVoidJson(root: string): VoidJson {
+function loadConfig(root: string): KumohJson {
   const configPath = path.resolve(root, 'void.json');
   if (!existsSync(configPath)) {
     return {};
@@ -33,7 +32,7 @@ function loadVoidJson(root: string): VoidJson {
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
-function voidJsonToConfig(raw: VoidJson, root: string): MakeVoidConfig {
+function toPluginConfig(raw: KumohJson, root: string): MakeVoidConfig {
   return {
     routesEntry: raw.routes ? path.resolve(root, raw.routes) : undefined,
     cronsDir: path.resolve(root, raw.crons ?? 'app/crons'),
@@ -42,17 +41,16 @@ function voidJsonToConfig(raw: VoidJson, root: string): MakeVoidConfig {
   };
 }
 
-function buildWorkerConfig(raw: VoidJson) {
-  const name = raw.name ?? 'void-app';
+function buildWorkerConfig(raw: KumohJson) {
+  const name = raw.name ?? 'kumoh-app';
 
   const workerConfig: Record<string, unknown> = {
     name,
-    main: 'void/entry',
+    main: 'kumoh/entry',
     compatibility_date: '2025-03-14',
     compatibility_flags: ['nodejs_compat'],
   };
 
-  // Always provision D1 if schema is configured
   if (raw.schema) {
     workerConfig.d1_databases = [
       {
@@ -63,7 +61,6 @@ function buildWorkerConfig(raw: VoidJson) {
     ];
   }
 
-  // Always provision KV
   workerConfig.kv_namespaces = [
     {
       binding: BINDING_NAMES.kv,
@@ -71,7 +68,6 @@ function buildWorkerConfig(raw: VoidJson) {
     },
   ];
 
-  // Always provision R2
   workerConfig.r2_buckets = [
     {
       binding: BINDING_NAMES.r2,
@@ -79,7 +75,6 @@ function buildWorkerConfig(raw: VoidJson) {
     },
   ];
 
-  // Provision queues if queues dir is configured
   if (raw.queues) {
     workerConfig.queues = {
       producers: [
@@ -99,22 +94,22 @@ function buildWorkerConfig(raw: VoidJson) {
   return workerConfig;
 }
 
-export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
+export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
   const root = process.cwd();
-  const raw = loadVoidJson(root);
+  const raw = loadConfig(root);
   const config: MakeVoidConfig = {
-    ...voidJsonToConfig(raw, root),
+    ...toPluginConfig(raw, root),
     ...userConfig,
   };
   const workerConfig = buildWorkerConfig(raw);
-  const envName = (raw.name ?? 'void-app').replace(/-/g, '_');
+  const envName = (raw.name ?? 'kumoh-app').replace(/-/g, '_');
 
   return [
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
     ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
     {
-      name: 'void:output',
+      name: 'kumoh:output',
       config: () => ({
         environments: {
           [envName]: { build: { outDir: 'dist' } },

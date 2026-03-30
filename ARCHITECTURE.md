@@ -1,4 +1,4 @@
-# How Void Works: A Complete Deep Dive
+# How Kumoh Works: A Complete Deep Dive
 
 ## The Problem
 
@@ -14,10 +14,10 @@ export default {
 };
 ```
 
-This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. Void solves this by letting you write:
+This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. Kumoh solves this by letting you write:
 
 ```ts
-import { db, eq } from 'void/db';
+import { db, eq } from 'kumoh/db';
 import { users } from '@schema';
 
 // Type-safe queries -- no env threading
@@ -25,7 +25,7 @@ const allUsers = await db.select().from(users);
 const user = await db.select().from(users).where(eq(users.id, 1));
 ```
 
-**The question is: how? `"void/db"` isn't a real file. How does this import work?**
+**The question is: how? `"kumoh/db"` isn't a real file. How does this import work?**
 
 ---
 
@@ -38,7 +38,7 @@ import { env } from 'cloudflare:workers';
 const result = await env.DB.prepare('SELECT * FROM users').all();
 ```
 
-This is a workerd-native feature -- no AsyncLocalStorage, no request context wrapping. It works at module scope. Void automates this pattern via a Vite plugin that generates wrapper modules from your config, powered by Drizzle ORM for type-safe database access.
+This is a workerd-native feature -- no AsyncLocalStorage, no request context wrapping. It works at module scope. Kumoh automates this pattern via a Vite plugin that generates wrapper modules from your config, powered by Drizzle ORM for type-safe database access.
 
 ---
 
@@ -49,36 +49,36 @@ Vite plugins have two hooks that let you create modules that **don't exist on di
 1. `**resolveId(id)`\*\* -- Vite calls this when it encounters an import. If your plugin returns a value, Vite uses that as the resolved module ID instead of looking for a file. By convention, virtual modules are prefixed with `\0` (null byte) to tell other plugins "this isn't a real file path."
 2. `**load(id)**` -- Vite calls this to get the module's source code. Your plugin returns a **string of JavaScript** that Vite treats as if it were reading a file.
 
-So when your code says `import { db } from "void/db"`:
+So when your code says `import { db } from "kumoh/db"`:
 
 ```
-User code:  import { db } from "void/db"
+User code:  import { db } from "kumoh/db"
                     |
                     v
-resolveId("void/db")  ->  returns "\0void/db"
+resolveId("kumoh/db")  ->  returns "\0kumoh/db"
                     |
                     v
-load("\0void/db")  ->  returns GENERATED JavaScript string
+load("\0kumoh/db")  ->  returns GENERATED JavaScript string
                     |
                     v
 Vite treats the returned string as the module's source code
 ```
 
-Here's the actual implementation in `packages/void/src/plugin.ts`:
+Here's the actual implementation in `packages/kumoh/src/plugin.ts`:
 
 ```ts
 const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
-  "void/db": generateDbModule,
-  "void/kv": generateKvModule,
-  "void/storage": generateStorageModule,
-  "void/queue": generateQueueModule,
+  "kumoh/db": generateDbModule,
+  "kumoh/kv": generateKvModule,
+  "kumoh/storage": generateStorageModule,
+  "kumoh/queue": generateQueueModule,
 };
 
 export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
   let root: string;
 
   return {
-    name: "void:virtual-modules",
+    name: "kumoh:virtual-modules",
     enforce: "pre", // Run BEFORE Vite's built-in resolver
 a
     configResolved(cfg: ResolvedConfig) {
@@ -87,12 +87,12 @@ a
 
     resolveId(id: string) {
       if (MODULE_GENERATORS[id]) return "\0" + id;
-      if (id === "void/entry") return "\0" + id;
+      if (id === "kumoh/entry") return "\0" + id;
       return null;
     },
 
     load(id: string) {
-      if (!id.startsWith("\0void/")) return null;
+      if (!id.startsWith("\0kumoh/")) return null;
 
       const moduleId = id.slice(1);
 
@@ -100,13 +100,13 @@ a
         return MODULE_GENERATORS[moduleId](config);
       }
 
-      // ... handle void/entry ...
+      // ... handle kumoh/entry ...
     },
   };
 }
 ```
 
-**Critical detail: `enforce: "pre"`**. Without this, Vite's built-in resolver runs first, sees `"void/db"`, checks the package.json `exports` map, and tries to resolve it as a real file. With `enforce: "pre"`, our `resolveId` intercepts it before Vite ever checks the package.json.
+**Critical detail: `enforce: "pre"`**. Without this, Vite's built-in resolver runs first, sees `"kumoh/db"`, checks the package.json `exports` map, and tries to resolve it as a real file. With `enforce: "pre"`, our `resolveId` intercepts it before Vite ever checks the package.json.
 
 ---
 
@@ -114,9 +114,9 @@ a
 
 Each virtual module generator is a function that returns a **string of JavaScript**. The same code runs in both dev and production because both environments run inside workerd (the Cloudflare Workers runtime).
 
-### `void/db` -- Drizzle ORM + D1 Database
+### `kumoh/db` -- Drizzle ORM + D1 Database
 
-The generated code for `void/db`:
+The generated code for `kumoh/db`:
 
 ```ts
 import { env } from 'cloudflare:workers';
@@ -171,7 +171,7 @@ export {
 - `**db**` is a Drizzle ORM instance wrapping the D1 binding. You use it for type-safe queries: `db.select().from(users).where(eq(users.id, 1))`.
 - `**d1**` is the raw D1 binding for escape-hatch operations like `d1.exec("CREATE TABLE ...")`.
 - **Operators** (`eq`, `desc`, `count`, etc.) are re-exported so you import everything from one place.
-- **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) are re-exported so your schema file also imports from `void/db`.
+- **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) are re-exported so your schema file also imports from `kumoh/db`.
 
 The binding name (`DB`) comes from your `void.json` config:
 
@@ -183,19 +183,19 @@ The generator reads `config.bindings.d1` and interpolates it into the generated 
 
 ### Dual Resolution: Vite vs Node.js
 
-`void/db` needs to work in two contexts:
+`kumoh/db` needs to work in two contexts:
 
 1. **Inside Vite** (dev server, build): The virtual module plugin intercepts the import and returns the full generated module with `db`, `d1`, operators, and schema builders.
-2. **Outside Vite** (drizzle-kit CLI for migrations): Node.js resolves `void/db` via the package.json `exports` map, which points to a real `dist/db.js` file that re-exports only the schema builders and operators (no `cloudflare:workers` dependency).
+2. **Outside Vite** (drizzle-kit CLI for migrations): Node.js resolves `kumoh/db` via the package.json `exports` map, which points to a real `dist/db.js` file that re-exports only the schema builders and operators (no `cloudflare:workers` dependency).
 
-This is why the schema file works with both `vite dev` and `void db generate`.
+This is why the schema file works with both `vite dev` and `kumoh db generate`.
 
 ### Other Bindings
 
 Same pattern for KV, R2, and Queue -- each wraps `env.BINDING_NAME` with a Proxy:
 
 ```ts
-// void/kv -> wraps env.KV
+// kumoh/kv -> wraps env.KV
 import { env } from 'cloudflare:workers';
 export const kv = new Proxy(
   {},
@@ -206,7 +206,7 @@ export const kv = new Proxy(
   }
 );
 
-// void/storage -> wraps env.BUCKET
+// kumoh/storage -> wraps env.BUCKET
 import { env } from 'cloudflare:workers';
 export const storage = new Proxy(
   {},
@@ -217,7 +217,7 @@ export const storage = new Proxy(
   }
 );
 
-// void/queue -> wraps env.QUEUE
+// kumoh/queue -> wraps env.QUEUE
 import { env } from 'cloudflare:workers';
 export const queue = new Proxy(
   {},
@@ -261,13 +261,13 @@ There is no `wrangler.toml`. The `void.json` file is the single source of truth 
 }
 ```
 
-The `makeVoid()` plugin reads this file and **generates the Cloudflare worker configuration programmatically**:
+The `kumoh()` plugin reads this file and **generates the Cloudflare worker configuration programmatically**:
 
 ```ts
 function buildWorkerConfig(raw: VoidJson) {
   const workerConfig = {
-    name: raw.name ?? 'void-app',
-    main: 'void/entry', // virtual module as worker entry
+    name: raw.name ?? 'kumoh-app',
+    main: 'kumoh/entry', // virtual module as worker entry
     compatibility_date: '2025-03-14',
     compatibility_flags: ['nodejs_compat'],
   };
@@ -293,10 +293,10 @@ The `@cloudflare/vite-plugin` accepts this config object directly -- no file on 
 
 ### Schema Definition
 
-Your schema lives in `app/db/schema.ts` and imports everything from `void/db`:
+Your schema lives in `app/db/schema.ts` and imports everything from `kumoh/db`:
 
 ```ts
-import { sqliteTable, text, integer } from 'void/db';
+import { sqliteTable, text, integer } from 'kumoh/db';
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -319,7 +319,7 @@ import { users, visits } from '@schema';
 ### Type-Safe Queries
 
 ```ts
-import { db, eq, count, d1 } from 'void/db';
+import { db, eq, count, d1 } from 'kumoh/db';
 import { users, visits } from '@schema';
 
 // Setup (raw D1 for DDL)
@@ -340,10 +340,10 @@ const result = await db.select({ count: count() }).from(visits);
 The `void` CLI wraps `drizzle-kit` and auto-configures it from `void.json`. No `drizzle.config.ts` needed.
 
 ```sh
-void db generate   # Generate SQL migration files from your schema
-void db migrate    # Push schema changes to local D1 database
-void db push       # Alias for migrate
-void db studio     # Open Drizzle Studio to browse your local database
+kumoh db generate   # Generate SQL migration files from your schema
+kumoh db migrate    # Push schema changes to local D1 database
+kumoh db push       # Alias for migrate
+kumoh db studio     # Open Drizzle Studio to browse your local database
 ```
 
 Under the hood, each command:
@@ -356,8 +356,8 @@ Under the hood, each command:
 For `migrate`/`studio`, the CLI finds the local D1 SQLite file in `.void/v3/d1/` (where Miniflare persists it) and passes it as `dbCredentials.url` to drizzle-kit.
 
 ```
-$ void db --help
-USAGE void db generate|migrate|push|studio
+$ kumoh db --help
+USAGE kumoh db generate|migrate|push|studio
 
 COMMANDS
   generate    Generate SQL migration files from your schema
@@ -374,7 +374,7 @@ You write a single Hono app that owns all HTTP routing:
 
 ```ts
 import { Hono } from 'hono';
-import { db, eq, count, d1 } from 'void/db';
+import { db, eq, count, d1 } from 'kumoh/db';
 import { users, visits } from '@schema';
 
 const app = new Hono();
@@ -391,7 +391,7 @@ app.get('/api/hello', async (c) => {
   await db.insert(visits).values({ path: '/api/hello' });
   const result = await db.select({ count: count() }).from(visits);
   return c.json({
-    message: 'Hello from Void!',
+    message: 'Hello from Kumoh!',
     visits: result[0].count,
   });
 });
@@ -417,20 +417,20 @@ app.post('/api/users', async (c) => {
 export default app;
 ```
 
-When Vite processes this file, it encounters `import { db, eq, count, d1 } from "void/db"`. Our plugin's `resolveId` intercepts it, `load` returns the generated Drizzle-powered code, and Vite stitches it all together. The user never sees the generated code.
+When Vite processes this file, it encounters `import { db, eq, count, d1 } from "kumoh/db"`. Our plugin's `resolveId` intercepts it, `load` returns the generated Drizzle-powered code, and Vite stitches it all together. The user never sees the generated code.
 
-Hono owns all routing, middleware, validation, etc. Void doesn't touch HTTP handling at all.
+Hono owns all routing, middleware, validation, etc. Kumoh doesn't touch HTTP handling at all.
 
 ---
 
-## The Generated Worker Entry: `void/entry`
+## The Generated Worker Entry: `kumoh/entry`
 
-Cloudflare Workers need a single entry point that exports `{ fetch, scheduled, queue }`. The `void/entry` virtual module generates this by scanning `crons/` and `queues/` directories and importing the Hono app.
+Cloudflare Workers need a single entry point that exports `{ fetch, scheduled, queue }`. The `kumoh/entry` virtual module generates this by scanning `crons/` and `queues/` directories and importing the Hono app.
 
 Given `app/routes/index.ts`, `app/crons/cleanup.ts`, and `app/queues/email.ts`, it generates:
 
 ```ts
-// AUTO-GENERATED BY void
+// AUTO-GENERATED BY kumoh
 import app from '/absolute/path/to/app/routes/index.ts';
 
 import * as cron_cleanup from '/absolute/path/to/app/crons/cleanup.ts';
@@ -461,7 +461,7 @@ export default {
 };
 ```
 
-The key detail: `main: "void/entry"` is set in the worker config. The Cloudflare Vite plugin passes non-extension strings through to Vite's module resolver, where our `resolveId` hook intercepts it and `load` returns the generated entry code. Absolute paths are used so Rollup can resolve imports from a virtual module (which has no location on disk).
+The key detail: `main: "kumoh/entry"` is set in the worker config. The Cloudflare Vite plugin passes non-extension strings through to Vite's module resolver, where our `resolveId` hook intercepts it and `load` returns the generated entry code. Absolute paths are used so Rollup can resolve imports from a virtual module (which has no location on disk).
 
 ### Cron Convention
 
@@ -469,7 +469,7 @@ Each cron file exports its schedule string and a default handler:
 
 ```ts
 // app/crons/cleanup.ts
-import { db, sql, lt } from 'void/db';
+import { db, sql, lt } from 'kumoh/db';
 import { sessions } from '@schema';
 
 export const schedule = '0 */6 * * *';
@@ -498,10 +498,10 @@ export default async function handler(ctx) {
 
 ## Type Safety: `virtual.d.ts`
 
-TypeScript doesn't know what `"void/db"` exports since it's a virtual module. We ship ambient type declarations:
+TypeScript doesn't know what `"kumoh/db"` exports since it's a virtual module. We ship ambient type declarations:
 
 ```ts
-declare module 'void/db' {
+declare module 'kumoh/db' {
   import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
   export const db: DrizzleD1Database;
@@ -547,15 +547,15 @@ declare module 'void/db' {
   } from 'drizzle-orm/sqlite-core';
 }
 
-declare module 'void/kv' {
+declare module 'kumoh/kv' {
   export const kv: KVNamespace;
 }
 
-declare module 'void/storage' {
+declare module 'kumoh/storage' {
   export const storage: R2Bucket;
 }
 
-declare module 'void/queue' {
+declare module 'kumoh/queue' {
   export const queue: Queue;
 }
 ```
@@ -583,10 +583,10 @@ The `@schema` alias is resolved by both Vite (via `resolve.alias`) and TypeScrip
 
 ## The Plugin Assembly
 
-`makeVoid()` returns an array of plugins. It reads `void.json`, generates the worker config, and composes everything:
+`kumoh()` returns an array of plugins. It reads `void.json`, generates the worker config, and composes everything:
 
 ```ts
-export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
+export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
   const root = process.cwd();
   const raw = loadVoidJson(root);
   const config = { ...voidJsonToConfig(raw, root), ...userConfig };
@@ -598,7 +598,7 @@ export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
     ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
     // Flatten build output to dist/ instead of dist/<worker_name>/
     {
-      name: 'void:output',
+      name: 'kumoh:output',
       config: () => ({
         environments: { [envName]: { build: { outDir: 'dist' } } },
       }),
@@ -607,21 +607,21 @@ export function makeVoid(userConfig?: MakeVoidConfig): Plugin[] {
 }
 ```
 
-| Plugin                    | Hook                 | What It Does                                                                        |
-| ------------------------- | -------------------- | ----------------------------------------------------------------------------------- |
-| `void:virtual-modules`    | `resolveId` + `load` | Intercepts `void/db` etc., returns generated JS with Drizzle + `cloudflare:workers` |
-| `void:alias`              | `config`             | Maps `@schema` to `app/db/schema.ts`                                                |
-| `@cloudflare/vite-plugin` | Various              | Runs workerd/Miniflare with real D1, KV, R2, queues locally                         |
-| `void:output`             | `config`             | Flattens build output to `dist/`                                                    |
+| Plugin                    | Hook                 | What It Does                                                                         |
+| ------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
+| `kumoh:virtual-modules`   | `resolveId` + `load` | Intercepts `kumoh/db` etc., returns generated JS with Drizzle + `cloudflare:workers` |
+| `kumoh:alias`             | `config`             | Maps `@schema` to `app/db/schema.ts`                                                 |
+| `@cloudflare/vite-plugin` | Various              | Runs workerd/Miniflare with real D1, KV, R2, queues locally                          |
+| `kumoh:output`            | `config`             | Flattens build output to `dist/`                                                     |
 
 The user's `vite.config.ts` is just:
 
 ```ts
 import { defineConfig } from 'vite';
-import { makeVoid } from 'void';
+import { kumoh } from 'kumoh';
 
 export default defineConfig({
-  plugins: [makeVoid()],
+  plugins: [kumoh()],
 });
 ```
 
@@ -640,7 +640,7 @@ workerd (Cloudflare Workers runtime)
   - In prod: Cloudflare's edge network
          |
          v
-void/entry (virtual module, generated at build/dev time)
+kumoh/entry (virtual module, generated at build/dev time)
   - exports { fetch: app.fetch, scheduled, queue }
          |
          v
@@ -648,7 +648,7 @@ app.fetch(request)  <- Hono handles routing
          |
          v
 Route handler runs
-  - import { db, eq } from "void/db"
+  - import { db, eq } from "kumoh/db"
   - db is a Drizzle instance wrapping env.DB:
       db.select().from(users).where(eq(users.id, 1))
          |
@@ -682,12 +682,12 @@ pnpm build            # Build for production
 ```
 my-app/
   void.json              # Single source of truth -- bindings, routes, crons, queues
-  vite.config.ts         # Just: plugins: [makeVoid()]
+  vite.config.ts         # Just: plugins: [kumoh()]
   app/
     routes/
       index.ts           # Hono app -- owns all HTTP routing
     db/
-      schema.ts          # Drizzle schema (imports from void/db)
+      schema.ts          # Drizzle schema (imports from kumoh/db)
       migrations/        # Generated SQL migration files
     crons/
       cleanup.ts         # export const schedule + export default handler

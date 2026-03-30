@@ -30,7 +30,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
   let root: string;
 
   return {
-    name: 'void:virtual-modules',
+    name: 'kumoh:virtual-modules',
     enforce: 'pre',
 
     configResolved(cfg: ResolvedConfig) {
@@ -48,7 +48,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
     },
 
     load(id: string) {
-      if (!id.startsWith('\0void/')) {
+      if (!id.startsWith('\0kumoh/')) {
         return null;
       }
 
@@ -62,7 +62,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
         const routesEntry = findRoutesEntry(root, config.routesEntry);
         if (!routesEntry) {
           throw new Error(
-            '[void] No routes entry found. Create app/routes/index.ts'
+            '[kumoh] No routes entry found. Create app/routes/index.ts'
           );
         }
         const crons = scanCrons(root, config.cronsDir ?? 'crons');
@@ -77,7 +77,7 @@ export function createVirtualModulesPlugin(config: MakeVoidConfig): Plugin {
 
 export function createAliasPlugin(config: MakeVoidConfig): Plugin {
   return {
-    name: 'void:alias',
+    name: 'kumoh:alias',
 
     config() {
       return {

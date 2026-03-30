@@ -1,4 +1,4 @@
-import type { QueueContext } from 'void';
+import type { QueueContext } from 'kumoh';
 
 interface EmailMessage {
   to: string;

@@ -1,8 +1,8 @@
 {
-  "name": "void",
+  "name": "kumoh",
   "version": "0.1.0",
   "bin": {
-    "void": "./dist/cli.mjs"
+    "kumoh": "./dist/cli.mjs"
   },
   "files": [
     "dist",
