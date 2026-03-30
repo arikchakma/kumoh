@@ -15,32 +15,32 @@ import { defineCommand, runMain } from 'citty';
 
 const root = process.cwd();
 
-interface VoidJson {
+interface KumohJson {
   name?: string;
   schema?: string;
   bindings?: { d1?: string };
 }
 
-function loadVoidJson(): VoidJson {
-  const configPath = resolve(root, 'void.json');
+function loadKumohJson(): KumohJson {
+  const configPath = resolve(root, 'kumoh.json');
   if (!existsSync(configPath)) {
-    console.error('No void.json found in current directory.');
+    console.error('No kumoh.json found in current directory.');
     process.exit(1);
   }
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
-function getSchemaPath(config: VoidJson): string {
+function getSchemaPath(config: KumohJson): string {
   return resolve(root, config.schema ?? 'app/db/schema.ts');
 }
 
-function getMigrationsDir(config: VoidJson): string {
+function getMigrationsDir(config: KumohJson): string {
   const schemaPath = config.schema ?? 'app/db/schema.ts';
   return join(resolve(root, schemaPath, '..'), 'migrations');
 }
 
 function getLocalDbPath(): string | null {
-  const d1Dir = join(root, '.void', 'v3', 'd1');
+  const d1Dir = join(root, '.kumoh', 'v3', 'd1');
   if (!existsSync(d1Dir)) {
     return null;
   }
@@ -56,11 +56,11 @@ function getLocalDbPath(): string | null {
 }
 
 function writeTempConfig(
-  config: VoidJson,
+  config: KumohJson,
   extra: Record<string, unknown> = {}
 ): string {
-  mkdirSync(resolve(root, '.void'), { recursive: true });
-  const tempPath = resolve(root, '.void', 'drizzle.config.json');
+  mkdirSync(resolve(root, '.kumoh'), { recursive: true });
+  const tempPath = resolve(root, '.kumoh', 'drizzle.config.json');
   writeFileSync(
     tempPath,
     JSON.stringify(
@@ -78,7 +78,7 @@ function writeTempConfig(
 }
 
 function cleanupTempConfig() {
-  const tempPath = resolve(root, '.void', 'drizzle.config.json');
+  const tempPath = resolve(root, '.kumoh', 'drizzle.config.json');
   if (existsSync(tempPath)) {
     unlinkSync(tempPath);
   }
@@ -111,7 +111,7 @@ const generate = defineCommand({
     description: 'Generate SQL migration files from your schema',
   },
   run() {
-    const config = loadVoidJson();
+    const config = loadKumohJson();
     mkdirSync(getMigrationsDir(config), { recursive: true });
     const tempConfig = writeTempConfig(config);
     runDrizzleKit(`generate --config=${tempConfig}`);
@@ -125,7 +125,7 @@ const migrate = defineCommand({
     description: 'Push schema changes to local D1 database',
   },
   run() {
-    const config = loadVoidJson();
+    const config = loadKumohJson();
     const dbPath = requireLocalDb();
     const tempConfig = writeTempConfig(config, {
       dbCredentials: { url: dbPath },
@@ -141,7 +141,7 @@ const studio = defineCommand({
     description: 'Open Drizzle Studio to browse your local database',
   },
   run() {
-    const config = loadVoidJson();
+    const config = loadKumohJson();
     const dbPath = requireLocalDb();
     const tempConfig = writeTempConfig(config, {
       dbCredentials: { url: dbPath },

@@ -173,7 +173,7 @@ export {
 - **Operators** (`eq`, `desc`, `count`, etc.) are re-exported so you import everything from one place.
 - **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) are re-exported so your schema file also imports from `kumoh/db`.
 
-The binding name (`DB`) comes from your `void.json` config:
+The binding name (`DB`) comes from your `kumoh.json` config:
 
 ```json
 { "bindings": { "d1": "DB" } }
@@ -235,15 +235,15 @@ export const queue = new Proxy(
 
 There are **no mock implementations**. Both dev and production run inside workerd (the Cloudflare Workers runtime), so `import { env } from "cloudflare:workers"` works natively everywhere.
 
-In dev mode, `@cloudflare/vite-plugin` runs a local workerd instance via Miniflare. This provides real local implementations of D1 (backed by SQLite), KV (local file storage), R2, queues, etc. The data persists in the `.void/` directory.
+In dev mode, `@cloudflare/vite-plugin` runs a local workerd instance via Miniflare. This provides real local implementations of D1 (backed by SQLite), KV (local file storage), R2, queues, etc. The data persists in the `.kumoh/` directory.
 
 This is why the virtual module generators have no `isDev` branching -- the same generated code works in both environments.
 
 ---
 
-## Code as Infrastructure: `void.json`
+## Code as Infrastructure: `kumoh.json`
 
-There is no `wrangler.toml`. The `void.json` file is the single source of truth for your entire application:
+There is no `wrangler.toml`. The `kumoh.json` file is the single source of truth for your entire application:
 
 ```json
 {
@@ -285,7 +285,7 @@ function buildWorkerConfig(raw: VoidJson) {
 }
 ```
 
-The `@cloudflare/vite-plugin` accepts this config object directly -- no file on disk needed. Local state (D1 databases, KV data, etc.) persists in `.void/` instead of the default `.wrangler/`.
+The `@cloudflare/vite-plugin` accepts this config object directly -- no file on disk needed. Local state (D1 databases, KV data, etc.) persists in `.kumoh/` instead of the default `.wrangler/`.
 
 ---
 
@@ -337,7 +337,7 @@ const result = await db.select({ count: count() }).from(visits);
 
 ### CLI: Database Management
 
-The `void` CLI wraps `drizzle-kit` and auto-configures it from `void.json`. No `drizzle.config.ts` needed.
+The `void` CLI wraps `drizzle-kit` and auto-configures it from `kumoh.json`. No `drizzle.config.ts` needed.
 
 ```sh
 kumoh db generate   # Generate SQL migration files from your schema
@@ -348,12 +348,12 @@ kumoh db studio     # Open Drizzle Studio to browse your local database
 
 Under the hood, each command:
 
-1. Reads `void.json` to find the schema path
-2. Writes a temporary drizzle config (`.void-drizzle.config.json`)
+1. Reads `kumoh.json` to find the schema path
+2. Writes a temporary drizzle config (`.kumoh/drizzle.config.json`)
 3. Shells out to `drizzle-kit` with the generated config
 4. Cleans up the temp file
 
-For `migrate`/`studio`, the CLI finds the local D1 SQLite file in `.void/v3/d1/` (where Miniflare persists it) and passes it as `dbCredentials.url` to drizzle-kit.
+For `migrate`/`studio`, the CLI finds the local D1 SQLite file in `.kumoh/v3/d1/` (where Miniflare persists it) and passes it as `dbCredentials.url` to drizzle-kit.
 
 ```
 $ kumoh db --help
@@ -583,19 +583,19 @@ The `@schema` alias is resolved by both Vite (via `resolve.alias`) and TypeScrip
 
 ## The Plugin Assembly
 
-`kumoh()` returns an array of plugins. It reads `void.json`, generates the worker config, and composes everything:
+`kumoh()` returns an array of plugins. It reads `kumoh.json`, generates the worker config, and composes everything:
 
 ```ts
 export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
   const root = process.cwd();
   const raw = loadVoidJson(root);
-  const config = { ...voidJsonToConfig(raw, root), ...userConfig };
+  const config = { ...toPluginConfig(raw, root), ...userConfig };
   const workerConfig = buildWorkerConfig(raw);
 
   return [
     createVirtualModulesPlugin(config),
     createAliasPlugin(config),
-    ...cloudflare({ config: workerConfig, persistState: { path: '.void' } }),
+    ...cloudflare({ config: workerConfig, persistState: { path: '.kumoh' } }),
     // Flatten build output to dist/ instead of dist/<worker_name>/
     {
       name: 'kumoh:output',
@@ -654,7 +654,7 @@ Route handler runs
          |
          v
 D1 Database
-  - In dev: local SQLite via Miniflare (persisted in .void/)
+  - In dev: local SQLite via Miniflare (persisted in .kumoh/)
   - In prod: Cloudflare D1
          |
          v
@@ -681,7 +681,7 @@ pnpm build            # Build for production
 
 ```
 my-app/
-  void.json              # Single source of truth -- bindings, routes, crons, queues
+  kumoh.json              # Single source of truth -- bindings, routes, crons, queues
   vite.config.ts         # Just: plugins: [kumoh()]
   app/
     routes/
@@ -695,8 +695,8 @@ my-app/
       email.ts           # export const queueName + export default handler
   dist/
     index.js             # Built worker bundle
-    wrangler.json        # Auto-generated from void.json
-  .void/                 # Local dev state (D1, KV, R2) -- gitignored
+    wrangler.json        # Auto-generated from kumoh.json
+  .kumoh/                 # Local dev state (D1, KV, R2) -- gitignored
 ```
 
-No `wrangler.toml`. No `drizzle.config.ts`. No mock files. No middleware glue. `void.json` declares the intent, Void generates the infrastructure.
+No `wrangler.toml`. No `drizzle.config.ts`. No mock files. No middleware glue. `kumoh.json` declares the intent, Kumoh generates the infrastructure.
