@@ -1,4 +1,4 @@
-import path from 'node:path';
+import { resolve } from 'node:path';
 
 import type { Plugin, ResolvedConfig } from 'vite';
 
@@ -23,7 +23,7 @@ const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
   [VIRTUAL_STORAGE]: generateStorageModule,
 };
 
-export function createVirtualModulesPlugin(config: KumohConfig): Plugin {
+export function virtualModules(config: KumohConfig): Plugin {
   let root: string;
 
   return {
@@ -72,7 +72,7 @@ export function createVirtualModulesPlugin(config: KumohConfig): Plugin {
   };
 }
 
-export function createAliasPlugin(config: KumohConfig): Plugin {
+export function aliases(config: KumohConfig): Plugin {
   return {
     name: 'kumoh:alias',
 
@@ -81,8 +81,7 @@ export function createAliasPlugin(config: KumohConfig): Plugin {
         resolve: {
           alias: {
             '@schema':
-              config.schemaPath ??
-              path.resolve(process.cwd(), 'app/db/schema.ts'),
+              config.schemaPath ?? resolve(process.cwd(), 'app/db/schema.ts'),
           },
         },
       };

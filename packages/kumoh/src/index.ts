@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { resolve } from 'node:path';
 
 import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
-import { createVirtualModulesPlugin, createAliasPlugin } from './plugin.js';
+import { virtualModules, aliases } from './plugin.js';
 import { scanCrons } from './scanner.js';
 import type { KumohConfig } from './types.js';
 
@@ -20,31 +20,31 @@ interface KumohJson {
   schema?: string;
 }
 
-const BINDING_NAMES = {
+const bindings = {
   d1: 'DB',
   kv: 'KV',
   r2: 'BUCKET',
   queue: 'QUEUE',
 } as const;
 
-function loadConfig(root: string): KumohJson {
-  const configPath = path.resolve(root, 'kumoh.json');
+function readConfig(root: string): KumohJson {
+  const configPath = resolve(root, 'kumoh.json');
   if (!existsSync(configPath)) {
     return {};
   }
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
-function toPluginConfig(raw: KumohJson, root: string): KumohConfig {
+function resolveConfig(raw: KumohJson, root: string): KumohConfig {
   return {
-    routesEntry: raw.routes ? path.resolve(root, raw.routes) : undefined,
-    cronsDir: path.resolve(root, raw.crons ?? 'app/crons'),
-    queuesDir: path.resolve(root, raw.queues ?? 'app/queues'),
-    schemaPath: path.resolve(root, raw.schema ?? 'app/db/schema.ts'),
+    routesEntry: raw.routes ? resolve(root, raw.routes) : undefined,
+    cronsDir: resolve(root, raw.crons ?? 'app/crons'),
+    queuesDir: resolve(root, raw.queues ?? 'app/queues'),
+    schemaPath: resolve(root, raw.schema ?? 'app/db/schema.ts'),
   };
 }
 
-function buildWorkerConfig(raw: KumohJson, root: string) {
+function createWorkerConfig(raw: KumohJson, root: string) {
   const name = raw.name ?? 'kumoh-app';
 
   const workerConfig: Record<string, unknown> = {
@@ -57,7 +57,7 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
   if (raw.schema) {
     workerConfig.d1_databases = [
       {
-        binding: BINDING_NAMES.d1,
+        binding: bindings.d1,
         database_name: `${name}-db`,
         database_id: 'local',
       },
@@ -66,14 +66,14 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
 
   workerConfig.kv_namespaces = [
     {
-      binding: BINDING_NAMES.kv,
+      binding: bindings.kv,
       id: 'local',
     },
   ];
 
   workerConfig.r2_buckets = [
     {
-      binding: BINDING_NAMES.r2,
+      binding: bindings.r2,
       bucket_name: `${name}-bucket`,
     },
   ];
@@ -82,7 +82,7 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
     workerConfig.queues = {
       producers: [
         {
-          binding: BINDING_NAMES.queue,
+          binding: bindings.queue,
           queue: `${name}-queue`,
         },
       ],
@@ -94,9 +94,8 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
     };
   }
 
-  // Extract cron schedules from files for wrangler triggers
   if (raw.crons) {
-    const cronsDir = path.resolve(root, raw.crons);
+    const cronsDir = resolve(root, raw.crons);
     const crons = scanCrons(root, cronsDir);
     if (crons.length) {
       workerConfig.triggers = {
@@ -110,17 +109,17 @@ function buildWorkerConfig(raw: KumohJson, root: string) {
 
 export function kumoh(userConfig?: KumohConfig): Plugin[] {
   const root = process.cwd();
-  const raw = loadConfig(root);
+  const raw = readConfig(root);
   const config: KumohConfig = {
-    ...toPluginConfig(raw, root),
+    ...resolveConfig(raw, root),
     ...userConfig,
   };
-  const workerConfig = buildWorkerConfig(raw, root);
+  const workerConfig = createWorkerConfig(raw, root);
   const envName = (raw.name ?? 'kumoh-app').replace(/-/g, '_');
 
   return [
-    createVirtualModulesPlugin(config),
-    createAliasPlugin(config),
+    virtualModules(config),
+    aliases(config),
     ...cloudflare({ config: workerConfig, persistState: { path: '.kumoh' } }),
     {
       name: 'kumoh:output',

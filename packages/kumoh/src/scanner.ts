@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { basename, extname, isAbsolute, resolve } from 'node:path';
 
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
@@ -11,9 +11,9 @@ export function findRoutesEntry(
   routesEntry?: string
 ): string | null {
   if (routesEntry) {
-    const abs = path.isAbsolute(routesEntry)
+    const abs = isAbsolute(routesEntry)
       ? routesEntry
-      : path.resolve(root, routesEntry);
+      : resolve(root, routesEntry);
     return existsSync(abs) ? abs : null;
   }
 
@@ -25,7 +25,7 @@ export function findRoutesEntry(
   ];
 
   for (const candidate of candidates) {
-    const abs = path.resolve(root, candidate);
+    const abs = resolve(root, candidate);
     if (existsSync(abs)) {
       return abs;
     }
@@ -35,9 +35,10 @@ export function findRoutesEntry(
 }
 
 /**
- * Extract `export const cron = '...'` from a TS/JS file using oxc AST parser.
+ * Parses a TS/JS file with oxc and extracts the value of
+ * `export const cron = '...'`. Returns `null` if not found.
  */
-function extractCronSchedule(filePath: string): string | null {
+function parseCronSchedule(filePath: string): string | null {
   const code = readFileSync(filePath, 'utf-8');
   const { program } = parseSync(filePath, code);
 
@@ -74,19 +75,17 @@ function extractCronSchedule(filePath: string): string | null {
 }
 
 export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
-  const absDir = path.isAbsolute(cronsDir)
-    ? cronsDir
-    : path.resolve(root, cronsDir);
+  const absDir = isAbsolute(cronsDir) ? cronsDir : resolve(root, cronsDir);
   if (!existsSync(absDir)) {
     return [];
   }
   const files = fg.sync('**/*.{ts,js}', { cwd: absDir });
 
   return files
-    .filter((f) => !path.basename(f).startsWith('_'))
+    .filter((f) => !basename(f).startsWith('_'))
     .map((file) => {
-      const filePath = path.resolve(absDir, file);
-      const schedule = extractCronSchedule(filePath);
+      const filePath = resolve(absDir, file);
+      const schedule = parseCronSchedule(filePath);
       if (!schedule) {
         console.warn(
           `[kumoh] ${file}: missing \`export const cron = '...'\`, skipping`
@@ -94,7 +93,7 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
       }
       return {
         filePath,
-        name: path.basename(file, path.extname(file)),
+        name: basename(file, extname(file)),
         importPath: filePath,
         schedule: schedule ?? '',
       };
@@ -103,19 +102,17 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
 }
 
 export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
-  const absDir = path.isAbsolute(queuesDir)
-    ? queuesDir
-    : path.resolve(root, queuesDir);
+  const absDir = isAbsolute(queuesDir) ? queuesDir : resolve(root, queuesDir);
   if (!existsSync(absDir)) {
     return [];
   }
   const files = fg.sync('**/*.{ts,js}', { cwd: absDir });
 
   return files
-    .filter((f) => !path.basename(f).startsWith('_'))
+    .filter((f) => !basename(f).startsWith('_'))
     .map((file) => ({
-      filePath: path.resolve(absDir, file),
-      name: path.basename(file, path.extname(file)),
-      importPath: path.resolve(absDir, file),
+      filePath: resolve(absDir, file),
+      name: basename(file, extname(file)),
+      importPath: resolve(absDir, file),
     }));
 }

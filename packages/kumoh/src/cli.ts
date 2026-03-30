@@ -12,6 +12,7 @@ import {
 import { join, resolve } from 'node:path';
 
 import { defineCommand, runMain } from 'citty';
+
 const root = process.cwd();
 
 interface KumohJson {
