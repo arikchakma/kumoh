@@ -1,7 +1,3 @@
 {
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["@cloudflare/workers-types"]
-  },
-  "include": ["app", "*.ts", ".kumoh/schema.d.ts"]
+  "extends": "kumoh/tsconfig"
 }

@@ -98,20 +98,3 @@ export function virtualModules(config: KumohConfig): Plugin {
     },
   };
 }
-
-export function aliases(config: KumohConfig): Plugin {
-  return {
-    name: 'kumoh:alias',
-
-    config() {
-      return {
-        resolve: {
-          alias: {
-            '@schema':
-              config.schemaPath ?? resolve(process.cwd(), 'app/db/schema.ts'),
-          },
-        },
-      };
-    },
-  };
-}

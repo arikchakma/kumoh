@@ -6,7 +6,8 @@
   },
   "files": [
     "dist",
-    "virtual.d.ts"
+    "virtual.d.ts",
+    "tsconfig.base.json"
   ],
   "type": "module",
   "main": "./dist/index.mjs",
@@ -33,7 +34,8 @@
     "./queue": {
       "types": "./virtual.d.ts",
       "default": "./dist/queue.mjs"
-    }
+    },
+    "./tsconfig": "./tsconfig.base.json"
   },
   "scripts": {
     "build": "vp pack",

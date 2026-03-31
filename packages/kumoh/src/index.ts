@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
-import { virtualModules, aliases } from './plugin.js';
+import { virtualModules } from './plugin.js';
 import { scanCrons } from './scanner.js';
 import type { KumohConfig } from './types.js';
 
@@ -119,7 +119,6 @@ export function kumoh(userConfig?: KumohConfig): Plugin[] {
 
   return [
     virtualModules(config),
-    aliases(config),
     ...cloudflare({ config: workerConfig, persistState: { path: '.kumoh' } }),
     {
       name: 'kumoh:output',

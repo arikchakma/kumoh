@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": [
+    "${configDir}/app",
+    "${configDir}/*.ts",
+    "${configDir}/.kumoh/schema.d.ts"
+  ],
+  "exclude": ["${configDir}/dist", "${configDir}/node_modules"]
+}
