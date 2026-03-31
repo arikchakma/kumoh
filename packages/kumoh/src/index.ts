@@ -12,13 +12,13 @@ export type { KumohConfig } from './types.js';
 export { defineScheduled } from './scheduled.js';
 export { defineQueue } from './queue.js';
 
-interface KumohJson {
+type KumohJson = {
   name?: string;
   routes?: string;
   crons?: string;
   queues?: string;
   schema?: string;
-}
+};
 
 const bindings = {
   d1: 'DB',

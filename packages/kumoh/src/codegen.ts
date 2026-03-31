@@ -2,17 +2,17 @@ import { genImport, genObjectFromRaw, genSafeVariableName } from 'knitwork';
 
 import type { ScannedCron, ScannedQueue } from './types.js';
 
-interface CronVar {
+type CronVar = {
   handler: string;
   schedule: string;
   importPath: string;
-}
+};
 
-interface QueueVar {
+type QueueVar = {
   handler: string;
   queueName: string;
   importPath: string;
-}
+};
 
 /**
  * Assembles a module from discrete code sections, separated by blank lines.
