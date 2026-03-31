@@ -101,6 +101,9 @@ export function virtualModules(config: KumohConfig): Plugin {
         if (event !== 'add' && event !== 'unlink') {
           return;
         }
+        if (!filePath.endsWith('.ts') && !filePath.endsWith('.js')) {
+          return;
+        }
 
         const isWatched = dirs.some((dir) => filePath.startsWith(dir));
         if (!isWatched) {
