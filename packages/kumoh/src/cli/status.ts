@@ -5,12 +5,7 @@ import { defineCommand } from 'citty';
 
 import { scanCrons } from '../scanner.js';
 import type { MigrationJournal } from './config.js';
-import {
-  getDeployState,
-  loadConfig,
-  migrationsDir,
-  resolveAppName,
-} from './config.js';
+import { loadConfig, migrationsDir } from './config.js';
 
 function row(label: string, value: string): void {
   console.log(`  ${label.padEnd(14)}${value}`);
@@ -21,24 +16,15 @@ export const status = defineCommand({
     name: 'status',
     description: 'Show deployment status and resource info',
   },
-  args: {
-    env: {
-      type: 'string',
-      description: 'Target environment (e.g. staging, production)',
-    },
-  },
-  async run({ args }) {
-    const env = args.env as string | undefined;
+  async run() {
     const config = await loadConfig();
-    const appName = resolveAppName(config, env);
-    const deploy = getDeployState(config, env);
+    const appName = config.name ?? 'kumoh-app';
+    const deploy = config.deploy;
 
-    console.log(`\n${appName}${env ? ` (${env})` : ''}`);
+    console.log(`\n${appName}`);
 
     if (!deploy) {
-      console.log(
-        `  Not deployed yet. Run \`kumoh deploy${env ? ` --env ${env}` : ''}\` to get started.\n`
-      );
+      console.log('  Not deployed yet. Run `kumoh deploy` to get started.\n');
       return;
     }
 
@@ -60,6 +46,7 @@ export const status = defineCommand({
       row('Queue', `${appName}-queue`);
     }
 
+    // Cron schedules
     if (config.crons) {
       try {
         const crons = scanCrons('.', config.crons);
@@ -74,6 +61,7 @@ export const status = defineCommand({
       }
     }
 
+    // Migration status
     if (config.schema) {
       const dir = migrationsDir(config);
       const journalPath = join(dir, 'meta', '_journal.json');

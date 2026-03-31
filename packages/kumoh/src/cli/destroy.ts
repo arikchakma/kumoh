@@ -2,12 +2,7 @@ import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
 
-import {
-  getDeployState,
-  loadConfig,
-  resolveAppName,
-  saveConfig,
-} from './config.js';
+import { loadConfig, saveConfig } from './config.js';
 import { log } from './log.js';
 import { wrangler } from './wrangler.js';
 
@@ -38,27 +33,18 @@ export const destroy = defineCommand({
     name: 'destroy',
     description: 'Tear down all deployed Cloudflare resources',
   },
-  args: {
-    env: {
-      type: 'string',
-      description: 'Target environment (e.g. staging, production)',
-    },
-  },
-  async run({ args }) {
-    const env = args.env as string | undefined;
+  async run() {
     const config = await loadConfig();
-    const appName = resolveAppName(config, env);
-    const deploy = getDeployState(config, env);
+    const appName = config.name ?? 'kumoh-app';
+    const deploy = config.deploy;
 
     if (!deploy) {
-      console.error(
-        `No deploy state found for ${env ? `"${env}" environment` : 'default'}. Nothing to destroy.`
-      );
+      console.error('No deploy state found in kumoh.json. Nothing to destroy.');
       process.exit(1);
     }
 
     console.log(
-      `\nThis will permanently delete all resources for "${appName}"${env ? ` (${env})` : ''}:`
+      `\nThis will permanently delete all resources for "${appName}":`
     );
     if (deploy.url) {
       console.log(`  Worker:  ${deploy.url}`);
@@ -108,13 +94,7 @@ export const destroy = defineCommand({
       );
     }
 
-    if (env) {
-      if (config.deployments) {
-        delete config.deployments[env];
-      }
-    } else {
-      delete config.deploy;
-    }
+    delete config.deploy;
     await saveConfig(config);
 
     log.done('All resources destroyed');

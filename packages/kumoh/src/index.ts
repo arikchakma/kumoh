@@ -19,7 +19,6 @@ type KumohJson = {
   crons?: string;
   queues?: string;
   schema?: string;
-  environments?: Record<string, { vars?: Record<string, string> }>;
 };
 
 const bindings = {

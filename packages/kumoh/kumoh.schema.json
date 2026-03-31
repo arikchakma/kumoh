@@ -33,36 +33,9 @@
       "description": "Path to the Drizzle schema file. Enables D1 database provisioning.",
       "default": "app/db/schema.ts"
     },
-    "environments": {
-      "type": "object",
-      "description": "Per-environment overrides. Each key is an environment name (e.g. staging, production).",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "vars": {
-            "type": "object",
-            "description": "Environment-specific variable overrides. Merged on top of root vars.",
-            "additionalProperties": { "type": "string" }
-          }
-        },
-        "additionalProperties": false
-      }
-    },
     "deploy": {
-      "$ref": "#/$defs/deployState",
-      "description": "Default deploy state — auto-managed by `kumoh deploy`. Do not edit manually."
-    },
-    "deployments": {
       "type": "object",
-      "description": "Per-environment deploy states — auto-managed by `kumoh deploy --env`. Do not edit manually.",
-      "additionalProperties": {
-        "$ref": "#/$defs/deployState"
-      }
-    }
-  },
-  "$defs": {
-    "deployState": {
-      "type": "object",
+      "description": "Deploy state — auto-managed by `kumoh deploy`. Do not edit manually.",
       "properties": {
         "d1": {
           "type": "string",
