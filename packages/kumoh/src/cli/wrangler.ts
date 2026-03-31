@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
-import { root } from './config.js';
+import { root } from './config.ts';
 
 function resolveBin(): string {
   const req = createRequire(

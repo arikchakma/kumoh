@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { access, mkdir, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import type { KumohJson } from './config.js';
-import { migrationsDir, root, schemaPath } from './config.js';
+import type { KumohJson } from './config.ts';
+import { migrationsDir, root, schemaPath } from './config.ts';
 
 export async function localDbPath(): Promise<string | null> {
   const d1Dir = join(root, '.kumoh', 'v3', 'd1');

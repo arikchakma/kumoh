@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
 
-import { log } from './log.js';
+import { log } from './log.ts';
 
 const root = process.cwd();
 

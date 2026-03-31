@@ -4,10 +4,10 @@ import { join, resolve } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import type { DeployState, KumohJson, MigrationJournal } from './config.js';
-import { loadConfig, migrationsDir, root, saveConfig } from './config.js';
-import { log } from './log.js';
-import { wrangler, wranglerExec } from './wrangler.js';
+import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
+import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
+import { log } from './log.ts';
+import { wrangler, wranglerExec } from './wrangler.ts';
 
 function parseJson<T>(raw: string, context: string): T {
   try {

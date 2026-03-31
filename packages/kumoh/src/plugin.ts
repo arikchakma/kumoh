@@ -3,7 +3,7 @@ import { basename, resolve } from 'node:path';
 
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 
-import { generateWorkerEntry } from './codegen.js';
+import { generateWorkerEntry } from './codegen.ts';
 import {
   VIRTUAL_DB,
   VIRTUAL_KV,
@@ -12,15 +12,15 @@ import {
   VIRTUAL_AI,
   VIRTUAL_EMAIL,
   VIRTUAL_ENTRY,
-} from './constants.js';
-import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
-import type { KumohConfig } from './types.js';
-import { generateAiModule } from './virtual/ai.js';
-import { generateDbModule } from './virtual/db.js';
-import { generateEmailModule } from './virtual/email.js';
-import { generateKvModule } from './virtual/kv.js';
-import { generateQueueModule } from './virtual/queue.js';
-import { generateStorageModule } from './virtual/storage.js';
+} from './constants.ts';
+import { findRoutesEntry, scanCrons, scanQueues } from './scanner.ts';
+import type { KumohConfig } from './types.ts';
+import { generateAiModule } from './virtual/ai.ts';
+import { generateDbModule } from './virtual/db.ts';
+import { generateEmailModule } from './virtual/email.ts';
+import { generateKvModule } from './virtual/kv.ts';
+import { generateQueueModule } from './virtual/queue.ts';
+import { generateStorageModule } from './virtual/storage.ts';
 
 type ModuleGenerator = () => string;
 

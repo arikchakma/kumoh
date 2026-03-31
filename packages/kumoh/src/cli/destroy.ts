@@ -2,9 +2,9 @@ import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
 
-import { loadConfig, saveConfig } from './config.js';
-import { log } from './log.js';
-import { wrangler } from './wrangler.js';
+import { loadConfig, saveConfig } from './config.ts';
+import { log } from './log.ts';
+import { wrangler } from './wrangler.ts';
 
 async function confirm(appName: string): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });

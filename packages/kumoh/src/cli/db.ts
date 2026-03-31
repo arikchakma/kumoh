@@ -3,14 +3,14 @@ import { resolve } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { loadConfig, migrationsDir, root, schemaPath } from './config.js';
+import { loadConfig, migrationsDir, root, schemaPath } from './config.ts';
 import {
   cleanupTempConfig,
   requireLocalDb,
   runDrizzleKit,
   writeTempConfig,
-} from './drizzle.js';
-import { log } from './log.js';
+} from './drizzle.ts';
+import { log } from './log.ts';
 
 async function generateSchemaTypes(schemaFile: string): Promise<void> {
   await mkdir(resolve(root, '.kumoh'), { recursive: true });

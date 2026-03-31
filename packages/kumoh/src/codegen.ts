@@ -1,6 +1,6 @@
 import { genImport, genObjectFromRaw, genSafeVariableName } from 'knitwork';
 
-import type { ScannedCron, ScannedQueue } from './types.js';
+import type { ScannedCron, ScannedQueue } from './types.ts';
 
 type CronVar = {
   handler: string;

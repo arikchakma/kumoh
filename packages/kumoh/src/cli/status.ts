@@ -3,9 +3,9 @@ import { join } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { scanCrons } from '../scanner.js';
-import type { MigrationJournal } from './config.js';
-import { loadConfig, migrationsDir } from './config.js';
+import { scanCrons } from '../scanner.ts';
+import type { MigrationJournal } from './config.ts';
+import { loadConfig, migrationsDir } from './config.ts';
 
 function row(label: string, value: string): void {
   console.log(`  ${label.padEnd(14)}${value}`);

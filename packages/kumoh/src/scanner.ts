@@ -4,7 +4,7 @@ import { basename, extname, isAbsolute, resolve } from 'node:path';
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
-import type { ScannedCron, ScannedQueue } from './types.js';
+import type { ScannedCron, ScannedQueue } from './types.ts';
 
 export function findRoutesEntry(
   root: string,

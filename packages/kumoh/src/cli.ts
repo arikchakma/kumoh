@@ -2,11 +2,11 @@
 
 import { defineCommand, runMain } from 'citty';
 
-import { db } from './cli/db.js';
-import { deploy } from './cli/deploy.js';
-import { destroy } from './cli/destroy.js';
-import { init } from './cli/init.js';
-import { status } from './cli/status.js';
+import { db } from './cli/db.ts';
+import { deploy } from './cli/deploy.ts';
+import { destroy } from './cli/destroy.ts';
+import { init } from './cli/init.ts';
+import { status } from './cli/status.ts';
 
 const main = defineCommand({
   meta: { name: 'kumoh', version: '0.1.0', description: 'The Kumoh CLI' },

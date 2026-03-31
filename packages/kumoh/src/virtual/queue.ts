@@ -1,4 +1,4 @@
-import type { ScannedQueue } from '../types.js';
+import type { ScannedQueue } from '../types.ts';
 
 /**
  * Generates the `kumoh/queue` virtual module.
