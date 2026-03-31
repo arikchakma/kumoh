@@ -60,8 +60,24 @@ function generateTypes(config: KumohConfig, root: string): void {
   const appName = config.appName ?? 'kumoh-app';
   const queues = scanQueues(root, config.queuesDir!, appName);
   if (queues.length) {
-    const props = queues.map((q) => `    ${q.camelName}: Queue;`).join('\n');
+    const imports = queues
+      .map((q) => {
+        const relative = q.importPath.replace(root, '..').replace(/\.ts$/, '');
+        return `import type handler_${q.camelName} from '${relative}';`;
+      })
+      .join('\n');
+
+    const props = queues
+      .map(
+        (q) =>
+          `    ${q.camelName}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
+      )
+      .join('\n');
+
     sections.push(
+      imports,
+      '',
+      'type ExtractQueueMessage<T> = T extends ExportedHandlerQueueHandler<any, infer M> ? M : unknown;',
       '',
       "declare module 'kumoh/queue' {",
       '  export const queue: {',
