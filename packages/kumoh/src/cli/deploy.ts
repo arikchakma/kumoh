@@ -5,7 +5,16 @@ import { join, resolve } from 'node:path';
 import { defineCommand } from 'citty';
 
 import type { DeployState, KumohJson, MigrationJournal } from './config.js';
-import { loadConfig, migrationsDir, root, saveConfig } from './config.js';
+import {
+  getDeployState,
+  loadConfig,
+  migrationsDir,
+  resolveAppName,
+  resolveVars,
+  root,
+  saveConfig,
+  setDeployState,
+} from './config.js';
 import { log } from './log.js';
 import { wrangler, wranglerExec } from './wrangler.js';
 
@@ -92,6 +101,26 @@ async function provisionQueue(name: string): Promise<void> {
   }
 }
 
+async function patchWranglerVars(vars: Record<string, string>): Promise<void> {
+  const wranglerPath = resolve(root, 'dist', 'wrangler.json');
+  const config = parseJson<Record<string, unknown>>(
+    await readFile(wranglerPath, 'utf-8'),
+    'dist/wrangler.json'
+  );
+  config.vars = vars;
+  await writeFile(wranglerPath, JSON.stringify(config, null, 2));
+}
+
+async function patchWranglerName(name: string): Promise<void> {
+  const wranglerPath = resolve(root, 'dist', 'wrangler.json');
+  const config = parseJson<Record<string, unknown>>(
+    await readFile(wranglerPath, 'utf-8'),
+    'dist/wrangler.json'
+  );
+  config.name = name;
+  await writeFile(wranglerPath, JSON.stringify(config, null, 2));
+}
+
 async function patchWranglerConfig(state: DeployState): Promise<void> {
   const wranglerPath = resolve(root, 'dist', 'wrangler.json');
   const config = parseJson<Record<string, unknown>>(
@@ -165,18 +194,41 @@ export const deploy = defineCommand({
     name: 'deploy',
     description: 'Build, provision, and deploy to Cloudflare',
   },
-  async run() {
+  args: {
+    env: {
+      type: 'string',
+      description: 'Target environment (e.g. staging, production)',
+    },
+  },
+  async run({ args }) {
+    const env = args.env as string | undefined;
     const config = await loadConfig();
-    const appName = config.name ?? 'kumoh-app';
+    const appName = resolveAppName(config, env);
+    const existing = getDeployState(config, env);
     const state: DeployState = {
-      d1: config.deploy?.d1,
-      kv: config.deploy?.kv,
-      url: config.deploy?.url,
-      migrations: config.deploy?.migrations ?? [],
+      d1: existing?.d1,
+      kv: existing?.kv,
+      url: existing?.url,
+      migrations: existing?.migrations ?? [],
     };
+
+    if (env) {
+      log.step(`Deploying to ${env}...`);
+    }
 
     log.step('Building...');
     await build();
+
+    // Patch vars with env-specific overrides before deploying
+    const vars = resolveVars(config, env);
+    if (Object.keys(vars).length) {
+      await patchWranglerVars(vars);
+    }
+
+    // Override worker name for environment
+    if (env) {
+      await patchWranglerName(appName);
+    }
 
     log.step('Provisioning resources...');
     if (config.schema) {
@@ -203,7 +255,7 @@ export const deploy = defineCommand({
       state.url = urlMatch[0];
     }
 
-    config.deploy = state;
+    setDeployState(config, state, env);
     await saveConfig(config);
 
     log.done(`Deployed to ${state.url ?? 'Cloudflare Workers'}`);
