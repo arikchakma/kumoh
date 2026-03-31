@@ -27,8 +27,8 @@ async function generateSchemaTypes(schemaFile: string): Promise<void> {
     '',
   ].join('\n');
 
-  await writeFile(resolve(root, '.kumoh', 'schema.d.ts'), content);
-  log.ok('Generated .kumoh/schema.d.ts');
+  await writeFile(resolve(root, '.kumoh', 'kumoh.d.ts'), content);
+  log.ok('Generated .kumoh/kumoh.d.ts');
 }
 
 const generate = defineCommand({

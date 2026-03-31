@@ -51,8 +51,6 @@ declare module 'kumoh/storage' {
 }
 
 declare module 'kumoh/queue' {
-  export const queue: Queue;
-
   export function defineQueue<Message = unknown, Env = unknown>(
     handler: ExportedHandlerQueueHandler<Env, Message>
   ): ExportedHandlerQueueHandler<Env, Message>;

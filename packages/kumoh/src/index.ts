@@ -5,7 +5,7 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
 import { virtualModules } from './plugin.js';
-import { scanCrons } from './scanner.js';
+import { scanCrons, scanQueues } from './scanner.js';
 import type { KumohConfig } from './types.js';
 
 export type { KumohConfig } from './types.js';
@@ -24,7 +24,6 @@ const bindings = {
   d1: 'DB',
   kv: 'KV',
   r2: 'BUCKET',
-  queue: 'QUEUE',
 } as const;
 
 function readConfig(root: string): KumohJson {
@@ -37,6 +36,7 @@ function readConfig(root: string): KumohJson {
 
 function resolveConfig(raw: KumohJson, root: string): KumohConfig {
   return {
+    appName: raw.name ?? 'kumoh-app',
     routesEntry: raw.routes ? resolve(root, raw.routes) : undefined,
     cronsDir: resolve(root, raw.crons ?? 'app/crons'),
     queuesDir: resolve(root, raw.queues ?? 'app/queues'),
@@ -85,19 +85,19 @@ function createWorkerConfig(raw: KumohJson, root: string) {
   workerConfig.send_email = [{ name: 'EMAIL' }];
 
   if (raw.queues) {
-    workerConfig.queues = {
-      producers: [
-        {
-          binding: bindings.queue,
-          queue: `${name}-queue`,
-        },
-      ],
-      consumers: [
-        {
-          queue: `${name}-queue`,
-        },
-      ],
-    };
+    const queuesDir = resolve(root, raw.queues);
+    const queues = scanQueues(root, queuesDir, name);
+    if (queues.length) {
+      workerConfig.queues = {
+        producers: queues.map((q) => ({
+          binding: q.binding,
+          queue: q.queueName,
+        })),
+        consumers: queues.map((q) => ({
+          queue: q.queueName,
+        })),
+      };
+    }
   }
 
   if (raw.crons) {

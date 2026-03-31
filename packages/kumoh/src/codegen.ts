@@ -10,7 +10,7 @@ interface CronVar {
 
 interface QueueVar {
   handler: string;
-  name: string;
+  queueName: string;
   importPath: string;
 }
 
@@ -138,7 +138,7 @@ function genQueueBlock(queueVars: QueueVar[]): string | false {
 
   const entries: Record<string, string> = {};
   for (const queue of queueVars) {
-    entries[queue.name] = queue.handler;
+    entries[queue.queueName] = queue.handler;
   }
 
   const body = [
@@ -200,7 +200,7 @@ export function generateWorkerEntry(
     const safe = genSafeVariableName(queue.name);
     return {
       handler: `queue_${safe}`,
-      name: queue.name,
+      queueName: queue.queueName,
       importPath: queue.importPath,
     };
   });

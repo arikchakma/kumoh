@@ -115,7 +115,19 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   return crons;
 }
 
-export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
+function toCamelCase(str: string): string {
+  return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+function toUpperSnake(str: string): string {
+  return str.replace(/-/g, '_').toUpperCase();
+}
+
+export function scanQueues(
+  root: string,
+  queuesDir: string,
+  appName: string
+): ScannedQueue[] {
   const absDir = isAbsolute(queuesDir) ? queuesDir : resolve(root, queuesDir);
   if (!existsSync(absDir)) {
     return [];
@@ -124,9 +136,15 @@ export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
 
   return files
     .filter((f) => !basename(f).startsWith('_'))
-    .map((file) => ({
-      filePath: resolve(absDir, file),
-      name: basename(file, extname(file)),
-      importPath: resolve(absDir, file),
-    }));
+    .map((file) => {
+      const name = basename(file, extname(file));
+      return {
+        filePath: resolve(absDir, file),
+        name,
+        camelName: toCamelCase(name),
+        binding: `QUEUE_${toUpperSnake(name)}`,
+        queueName: `${appName}-${name}`,
+        importPath: resolve(absDir, file),
+      };
+    });
 }

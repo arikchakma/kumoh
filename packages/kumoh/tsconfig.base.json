@@ -13,7 +13,7 @@
   "include": [
     "${configDir}/app",
     "${configDir}/*.ts",
-    "${configDir}/.kumoh/schema.d.ts"
+    "${configDir}/.kumoh/kumoh.d.ts"
   ],
   "exclude": ["${configDir}/dist", "${configDir}/node_modules"]
 }
