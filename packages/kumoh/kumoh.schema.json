@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kumoh Configuration",
+  "description": "Configuration file for Kumoh — a Cloudflare Workers framework powered by Hono + Drizzle.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The application name. Used for the worker name and resource naming (e.g. D1 database, KV namespace, R2 bucket, queue)."
+    },
+    "routes": {
+      "type": "string",
+      "description": "Path to the Hono app entry file.",
+      "default": "app/routes/index.ts"
+    },
+    "crons": {
+      "type": "string",
+      "description": "Directory containing cron handler files. Each file exports `cron` (schedule string) and a default handler.",
+      "default": "app/crons"
+    },
+    "queues": {
+      "type": "string",
+      "description": "Directory containing queue consumer files. Each file's name becomes the queue name.",
+      "default": "app/queues"
+    },
+    "schema": {
+      "type": "string",
+      "description": "Path to the Drizzle schema file. Enables D1 database provisioning.",
+      "default": "app/db/schema.ts"
+    },
+    "deploy": {
+      "type": "object",
+      "description": "Deploy state — auto-managed by `kumoh deploy`. Do not edit manually.",
+      "properties": {
+        "d1": {
+          "type": "string",
+          "description": "Cloudflare D1 database UUID."
+        },
+        "kv": {
+          "type": "string",
+          "description": "Cloudflare KV namespace ID."
+        },
+        "url": {
+          "type": "string",
+          "description": "Deployed worker URL."
+        },
+        "migrations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of applied migration tags."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["name"]
+}

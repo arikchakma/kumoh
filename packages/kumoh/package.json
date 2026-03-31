@@ -7,7 +7,8 @@
   "files": [
     "dist",
     "virtual.d.ts",
-    "tsconfig.base.json"
+    "tsconfig.base.json",
+    "kumoh.schema.json"
   ],
   "type": "module",
   "main": "./dist/index.mjs",
