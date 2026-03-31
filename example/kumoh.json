@@ -1,6 +1,10 @@
 {
   "$schema": "./node_modules/kumoh/kumoh.schema.json",
   "name": "example-app",
+  "vars": {
+    "API_HOST": "https://api.example.com",
+    "APP_ENV": "development"
+  },
   "routes": "app/routes/index.ts",
   "crons": "app/crons",
   "queues": "app/queues",
@@ -9,6 +13,6 @@
     "d1": "0c6f6fdd-b8fb-4819-8bc3-6d4ac2998c1d",
     "kv": "2c17dc6e47f94311ab512dd22724ef5a",
     "url": "https://example-app.arikchangma.workers.dev",
-    "migrations": ["0000_small_thunderbolts"]
+    "migrations": ["0000_overjoyed_meltdown"]
   }
 }

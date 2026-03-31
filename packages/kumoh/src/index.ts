@@ -14,6 +14,7 @@ export { defineQueue } from './queue.js';
 
 type KumohJson = {
   name?: string;
+  vars?: Record<string, string>;
   routes?: string;
   crons?: string;
   queues?: string;
@@ -37,6 +38,7 @@ function readConfig(root: string): KumohJson {
 function resolveConfig(raw: KumohJson, root: string): KumohConfig {
   return {
     appName: raw.name ?? 'kumoh-app',
+    vars: raw.vars,
     routesEntry: raw.routes ? resolve(root, raw.routes) : undefined,
     cronsDir: resolve(root, raw.crons ?? 'app/crons'),
     queuesDir: resolve(root, raw.queues ?? 'app/queues'),
@@ -78,7 +80,10 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     },
   ];
 
-  // AI binding
+  if (raw.vars) {
+    workerConfig.vars = raw.vars;
+  }
+
   workerConfig.ai = { binding: 'AI' };
 
   // Email binding

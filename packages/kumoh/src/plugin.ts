@@ -11,6 +11,7 @@ import {
   VIRTUAL_QUEUE,
   VIRTUAL_AI,
   VIRTUAL_EMAIL,
+  VIRTUAL_ENV,
   VIRTUAL_ENTRY,
 } from './constants.js';
 import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
@@ -18,6 +19,7 @@ import type { KumohConfig } from './types.js';
 import { generateAiModule } from './virtual/ai.js';
 import { generateDbModule } from './virtual/db.js';
 import { generateEmailModule } from './virtual/email.js';
+import { generateEnvModule } from './virtual/env.js';
 import { generateKvModule } from './virtual/kv.js';
 import { generateQueueModule } from './virtual/queue.js';
 import { generateStorageModule } from './virtual/storage.js';
@@ -37,6 +39,7 @@ function createGenerators(
       generateQueueModule(scanQueues(root, config.queuesDir!, appName)),
     [VIRTUAL_AI]: generateAiModule,
     [VIRTUAL_EMAIL]: generateEmailModule,
+    [VIRTUAL_ENV]: generateEnvModule,
   };
 }
 
@@ -86,6 +89,32 @@ function generateTypes(config: KumohConfig, root: string): void {
       '}'
     );
   }
+
+  // Generate env types from vars + known bindings
+  const envProps: string[] = [];
+  if (config.vars) {
+    for (const key of Object.keys(config.vars)) {
+      envProps.push(`    ${key}: string;`);
+    }
+  }
+  envProps.push(
+    '    DB: D1Database;',
+    '    KV: KVNamespace;',
+    '    BUCKET: R2Bucket;',
+    '    AI: Ai;',
+    '    EMAIL: SendEmail;'
+  );
+  for (const q of queues) {
+    envProps.push(`    ${q.binding}: Queue;`);
+  }
+  sections.push(
+    '',
+    "declare module 'kumoh/env' {",
+    '  export const env: {',
+    envProps.join('\n'),
+    '  };',
+    '}'
+  );
 
   writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
 }

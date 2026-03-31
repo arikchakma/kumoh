@@ -8,6 +8,11 @@
       "type": "string",
       "description": "The application name. Used for the worker name and resource naming (e.g. D1 database, KV namespace, R2 bucket, queue)."
     },
+    "vars": {
+      "type": "object",
+      "description": "Environment variables. Keys become typed properties on `env` from kumoh/env. Use .dev.vars for secrets in local dev.",
+      "additionalProperties": { "type": "string" }
+    },
     "routes": {
       "type": "string",
       "description": "Path to the Hono app entry file.",
