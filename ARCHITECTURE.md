@@ -17,12 +17,11 @@ export default {
 This means you must pass `env` through every function call. If you use Hono, it's `c.env.DB`. Kumoh solves this by letting you write:
 
 ```ts
-import { db, eq } from 'kumoh/db';
-import { users } from '@schema';
+import { db, eq, schema } from 'kumoh/db';
 
 // Type-safe queries -- no env threading
-const allUsers = await db.select().from(users);
-const user = await db.select().from(users).where(eq(users.id, 1));
+const allUsers = await db.select().from(schema.users);
+const user = await db.select().from(schema.users).where(eq(schema.users.id, 1));
 ```
 
 **The question is: how? `"kumoh/db"` isn't a real file. How does this import work?**
@@ -166,20 +165,31 @@ export {
   uniqueIndex,
   index,
 } from 'drizzle-orm/sqlite-core';
+
+// Re-export user's schema as a namespace
+import * as schema from '/absolute/path/to/app/db/schema.ts';
+export { schema };
 ```
 
-- `**db**` is a Drizzle ORM instance wrapping the D1 binding. You use it for type-safe queries: `db.select().from(users).where(eq(users.id, 1))`.
-- `**d1**` is the raw D1 binding for escape-hatch operations like `d1.exec("CREATE TABLE ...")`.
-- **Operators** (`eq`, `desc`, `count`, etc.) are re-exported so you import everything from one place.
-- **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) are re-exported so your schema file also imports from `kumoh/db`.
+### Circular Import Resolution
 
-The binding name (`DB`) comes from your `kumoh.json` config:
+The `kumoh/db` virtual module imports the user's schema, and the schema imports `sqliteTable` etc. from `kumoh/db`. This is a circular dependency that works because of how ES module bindings resolve:
 
-```json
-{ "bindings": { "d1": "DB" } }
-```
+1. Vite loads `kumoh/db` and sees `export { sqliteTable } from "drizzle-orm/sqlite-core"` — this re-export binding is established immediately (hoisted)
+2. Vite encounters `import * as schema from "app/db/schema.ts"` — starts loading the schema
+3. The schema does `import { sqliteTable } from "kumoh/db"` — circular, but `sqliteTable` is already a bound re-export from step 1
+4. The schema runs, defines tables, exports them
+5. Back in `kumoh/db`, `schema` is now the fully resolved namespace
 
-The generator reads `config.bindings.d1` and interpolates it into the generated code string.
+The key: `sqliteTable`, `text`, `integer` are **re-exports from a third-party module**, not computed values. ES modules provide live bindings — the binding exists before the module finishes executing. If they were computed values (e.g. `const sqliteTable = createBuilder(...)`) the circular import would fail.
+
+- **`db`** — Drizzle ORM instance wrapping the D1 binding: `db.select().from(schema.users)`
+- **`d1`** — raw D1 binding for escape-hatch DDL: `d1.exec("CREATE TABLE ...")`
+- **`schema`** — namespace containing all user-defined tables from `app/db/schema.ts`
+- **Operators** (`eq`, `desc`, `count`, etc.) — re-exported so you import everything from one place
+- **Schema builders** (`sqliteTable`, `text`, `integer`, etc.) — re-exported so the schema file also imports from `kumoh/db`
+
+Binding names (`DB`, `KV`, `BUCKET`, `QUEUE`) are hardcoded internally — the user never configures them.
 
 ### Dual Resolution: Vite vs Node.js
 
@@ -248,16 +258,28 @@ There is no `wrangler.toml`. The `kumoh.json` file is the single source of truth
 ```json
 {
   "name": "example-app",
-  "bindings": {
-    "d1": "DB",
-    "kv": "KV",
-    "r2": "BUCKET",
-    "queue": "EMAIL_QUEUE"
-  },
   "routes": "app/routes/index.ts",
   "crons": "app/crons",
   "queues": "app/queues",
   "schema": "app/db/schema.ts"
+}
+```
+
+After deploying, kumoh writes resource IDs back to the same file:
+
+```json
+{
+  "name": "example-app",
+  "routes": "app/routes/index.ts",
+  "crons": "app/crons",
+  "queues": "app/queues",
+  "schema": "app/db/schema.ts",
+  "deploy": {
+    "d1": "0c6f6fdd-...",
+    "kv": "2c17dc6e-...",
+    "url": "https://example-app.workers.dev",
+    "migrations": ["0000_overjoyed_meltdown"]
+  }
 }
 ```
 
@@ -293,7 +315,7 @@ The `@cloudflare/vite-plugin` accepts this config object directly -- no file on 
 
 ### Schema Definition
 
-Your schema lives in `app/db/schema.ts` and imports everything from `kumoh/db`:
+Your schema lives in `app/db/schema.ts` and imports builders from `kumoh/db`:
 
 ```ts
 import { sqliteTable, text, integer } from 'kumoh/db';
@@ -310,30 +332,26 @@ export const visits = sqliteTable('visits', {
 });
 ```
 
-The `@schema` alias (configured by the plugin via `resolve.alias`) lets you import your tables anywhere:
-
-```ts
-import { users, visits } from '@schema';
-```
+The `kumoh/db` virtual module re-exports all tables as `schema`, so you access them via `schema.users`, `schema.visits` — no naming conflicts with local variables.
 
 ### Type-Safe Queries
 
 ```ts
-import { db, eq, count, d1 } from 'kumoh/db';
-import { users, visits } from '@schema';
-
-// Setup (raw D1 for DDL)
-await d1.exec(`CREATE TABLE IF NOT EXISTS users (...)`);
+import { db, eq, schema } from 'kumoh/db';
 
 // Insert
-await db.insert(users).values({ name: 'Alice', email: 'alice@test.com' });
+await db
+  .insert(schema.users)
+  .values({ name: 'Alice', email: 'alice@test.com' });
 
 // Select with filter
-const user = await db.select().from(users).where(eq(users.id, 1));
+const user = await db.select().from(schema.users).where(eq(schema.users.id, 1));
 
 // Aggregation
-const result = await db.select({ count: count() }).from(visits);
+const count = await db.$count(schema.visits);
 ```
+
+Schema types are auto-generated into `.kumoh/schema.d.ts` on every `vp dev` and `vp build` start, giving full autocomplete on `schema.users.id`, `schema.users.name`, etc.
 
 ### CLI: Database Management
 
@@ -355,16 +373,18 @@ Under the hood, each command:
 
 For `migrate`/`studio`, the CLI finds the local D1 SQLite file in `.kumoh/v3/d1/` (where Miniflare persists it) and passes it as `dbCredentials.url` to drizzle-kit.
 
-```
-$ kumoh db --help
-USAGE kumoh db generate|migrate|push|studio
+### Deploy
 
-COMMANDS
-  generate    Generate SQL migration files from your schema
-   migrate    Push schema changes to local D1 database
-      push    Push schema changes to local D1 database
-    studio    Open Drizzle Studio to browse your local database
-```
+`kumoh deploy` handles the full deployment in one command:
+
+1. **Build** — runs `vp build` to produce `dist/index.js` + `dist/wrangler.json`
+2. **Provision** — creates Cloudflare resources (D1, KV, R2, queues) if they don't exist
+3. **Patch** — updates `dist/wrangler.json` with real resource IDs
+4. **Migrate** — applies unapplied D1 migrations to the remote database
+5. **Deploy** — runs `wrangler deploy`
+6. **Save** — writes resource IDs and deployed URL back to `kumoh.json`
+
+Resource IDs are persisted in the `deploy` key of `kumoh.json` so subsequent deploys are idempotent — existing resources are reused, only new migrations are applied.
 
 ---
 
@@ -374,45 +394,32 @@ You write a single Hono app that owns all HTTP routing:
 
 ```ts
 import { Hono } from 'hono';
-import { db, eq, count, d1 } from 'kumoh/db';
-import { users, visits } from '@schema';
+import { db, eq, schema } from 'kumoh/db';
 
-const app = new Hono();
-
-app.get('/api/setup', async (c) => {
-  await d1.exec(`
-    CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT);
-    CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL);
-  `);
-  return c.json({ ok: true });
-});
-
-app.get('/api/hello', async (c) => {
-  await db.insert(visits).values({ path: '/api/hello' });
-  const result = await db.select({ count: count() }).from(visits);
-  return c.json({
-    message: 'Hello from Kumoh!',
-    visits: result[0].count,
+const app = new Hono()
+  .get('/api/hello', async (c) => {
+    await db.insert(schema.visits).values({ path: '/api/hello' });
+    const count = await db.$count(schema.visits);
+    return c.json({ message: 'Hello from Kumoh!', visits: count });
+  })
+  .get('/api/users/:id', async (c) => {
+    const { id } = c.req.param();
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, Number(id)));
+    if (!result.length) {
+      return c.json({ error: `User not found: ${id}` }, 404);
+    }
+    return c.json(result[0]);
+  })
+  .post('/api/users', async (c) => {
+    const body = await c.req.json();
+    await db
+      .insert(schema.users)
+      .values({ name: body.name, email: body.email });
+    return c.json({ created: true }, 201);
   });
-});
-
-app.get('/api/users/:id', async (c) => {
-  const { id } = c.req.param();
-  const result = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, Number(id)));
-  if (!result.length) {
-    return c.json({ error: `User not found: ${id}` }, 404);
-  }
-  return c.json(result[0]);
-});
-
-app.post('/api/users', async (c) => {
-  const body = await c.req.json();
-  await db.insert(users).values({ name: body.name, email: body.email });
-  return c.json({ created: true }, 201);
-});
 
 export default app;
 ```
@@ -465,33 +472,37 @@ The key detail: `main: "kumoh/entry"` is set in the worker config. The Cloudflar
 
 ### Cron Convention
 
-Each cron file exports its schedule string and a default handler:
+Each cron file exports a `cron` schedule string and a default handler wrapped in `defineScheduled`. Each schedule must be unique — duplicate schedules are rejected at build time to ensure clean Cloudflare retry semantics (one handler per schedule, no partial failure ambiguity).
 
 ```ts
 // app/crons/cleanup.ts
-import { db, sql, lt } from 'kumoh/db';
-import { sessions } from '@schema';
+import { defineScheduled } from 'kumoh/cron';
+import { db, schema, sql, lt } from 'kumoh/db';
 
-export const schedule = '0 */6 * * *';
+export const cron = '0 */6 * * *';
 
-export default async function handler(ctx) {
-  await db.delete(sessions).where(lt(sessions.expiresAt, sql`datetime('now')`));
-}
+export default defineScheduled(async (controller, env, ctx) => {
+  await db
+    .delete(schema.sessions)
+    .where(lt(schema.sessions.expiresAt, sql`datetime('now')`));
+});
 ```
+
+The schedule string is extracted from the file at build time using the oxc AST parser (not regex) — parsing `export const cron = '...'` from the TypeScript source without executing it.
 
 ### Queue Convention
 
-Each queue file exports its queue name and a default handler:
+Each queue file exports a default handler wrapped in `defineQueue`. The queue name is derived from the filename (`email.ts` → `"email"`).
 
 ```ts
 // app/queues/email.ts
-export const queueName = 'EMAIL_QUEUE';
+import { defineQueue } from 'kumoh/queue';
 
-export default async function handler(ctx) {
-  for (const message of ctx.batch.messages) {
+export default defineQueue<EmailMessage>(async (batch, env, ctx) => {
+  for (const message of batch.messages) {
     message.ack();
   }
-}
+});
 ```
 
 ---
@@ -565,18 +576,32 @@ The package.json `exports` map routes type resolution:
 ```json
 {
   "exports": {
-    "./db": { "types": "./virtual.d.ts", "default": "./dist/db.js" },
+    "./db": { "types": "./virtual.d.ts", "default": "./dist/db.mjs" },
     "./kv": { "types": "./virtual.d.ts" },
     "./storage": { "types": "./virtual.d.ts" },
-    "./queue": { "types": "./virtual.d.ts" }
+    "./queue": { "types": "./virtual.d.ts", "default": "./dist/queue.mjs" },
+    "./cron": { "types": "./dist/cron.d.mts", "default": "./dist/cron.mjs" }
   }
 }
 ```
 
-The `@schema` alias is resolved by both Vite (via `resolve.alias`) and TypeScript (via `tsconfig.json` paths):
+### Auto-Generated Schema Types
+
+The `virtual.d.ts` declares `schema` as a loose type. For full type safety (autocomplete on `schema.users.id`, etc.), the plugin auto-generates `.kumoh/schema.d.ts` on every `vp dev` and `vp build`:
+
+```ts
+// .kumoh/schema.d.ts (auto-generated)
+import type * as s from '../app/db/schema';
+
+declare module 'kumoh/db' {
+  export const schema: typeof s;
+}
+```
+
+This module augmentation overrides the loose type with the real schema types. The user's `tsconfig.json` includes it:
 
 ```json
-{ "compilerOptions": { "paths": { "@schema": ["./app/db/schema.ts"] } } }
+{ "include": ["app", "*.ts", ".kumoh/schema.d.ts"] }
 ```
 
 ---
@@ -586,17 +611,15 @@ The `@schema` alias is resolved by both Vite (via `resolve.alias`) and TypeScrip
 `kumoh()` returns an array of plugins. It reads `kumoh.json`, generates the worker config, and composes everything:
 
 ```ts
-export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
+export function kumoh(userConfig?: KumohConfig): Plugin[] {
   const root = process.cwd();
-  const raw = loadVoidJson(root);
-  const config = { ...toPluginConfig(raw, root), ...userConfig };
-  const workerConfig = buildWorkerConfig(raw);
+  const raw = readConfig(root);
+  const config = { ...resolveConfig(raw, root), ...userConfig };
+  const workerConfig = createWorkerConfig(raw, root);
 
   return [
-    createVirtualModulesPlugin(config),
-    createAliasPlugin(config),
+    virtualModules(config),
     ...cloudflare({ config: workerConfig, persistState: { path: '.kumoh' } }),
-    // Flatten build output to dist/ instead of dist/<worker_name>/
     {
       name: 'kumoh:output',
       config: () => ({
@@ -607,18 +630,18 @@ export function kumoh(userConfig?: MakeVoidConfig): Plugin[] {
 }
 ```
 
-| Plugin                    | Hook                 | What It Does                                                                         |
-| ------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
-| `kumoh:virtual-modules`   | `resolveId` + `load` | Intercepts `kumoh/db` etc., returns generated JS with Drizzle + `cloudflare:workers` |
-| `kumoh:alias`             | `config`             | Maps `@schema` to `app/db/schema.ts`                                                 |
-| `@cloudflare/vite-plugin` | Various              | Runs workerd/Miniflare with real D1, KV, R2, queues locally                          |
-| `kumoh:output`            | `config`             | Flattens build output to `dist/`                                                     |
+| Plugin                    | Hook                 | What It Does                                                                                  |
+| ------------------------- | -------------------- | --------------------------------------------------------------------------------------------- |
+| `kumoh:virtual-modules`   | `resolveId` + `load` | Intercepts `kumoh/db` etc., returns generated JS with Drizzle + `cloudflare:workers` + schema |
+|                           | `configResolved`     | Auto-generates `.kumoh/schema.d.ts` for TypeScript type safety                                |
+| `@cloudflare/vite-plugin` | Various              | Runs workerd/Miniflare with real D1, KV, R2, queues locally                                   |
+| `kumoh:output`            | `config`             | Flattens build output to `dist/`                                                              |
 
 The user's `vite.config.ts` is just:
 
 ```ts
-import { defineConfig } from 'vite';
 import { kumoh } from 'kumoh';
+import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
   plugins: [kumoh()],
@@ -648,9 +671,9 @@ app.fetch(request)  <- Hono handles routing
          |
          v
 Route handler runs
-  - import { db, eq } from "kumoh/db"
+  - import { db, eq, schema } from "kumoh/db"
   - db is a Drizzle instance wrapping env.DB:
-      db.select().from(users).where(eq(users.id, 1))
+      db.select().from(schema.users).where(eq(schema.users.id, 1))
          |
          v
 D1 Database
@@ -668,11 +691,11 @@ The same code, the same runtime, the same virtual modules -- dev and production 
 ## Developer Workflow
 
 ```sh
-pnpm dev              # Start dev server (real D1 via workerd)
-pnpm db:generate      # Generate SQL migrations from schema
-pnpm db:migrate       # Push schema to local D1
-pnpm db:studio        # Browse local DB in Drizzle Studio
-pnpm build            # Build for production
+vp dev                # Start dev server (real D1 via workerd)
+kumoh db generate     # Generate SQL migrations from schema
+kumoh db migrate      # Push schema to local D1
+kumoh db studio       # Browse local DB in Drizzle Studio
+kumoh deploy          # Build, provision, migrate, and deploy to Cloudflare
 ```
 
 ---
@@ -681,22 +704,24 @@ pnpm build            # Build for production
 
 ```
 my-app/
-  kumoh.json              # Single source of truth -- bindings, routes, crons, queues
+  kumoh.json             # Single source of truth -- routes, crons, queues, schema, deploy state
   vite.config.ts         # Just: plugins: [kumoh()]
   app/
     routes/
       index.ts           # Hono app -- owns all HTTP routing
     db/
-      schema.ts          # Drizzle schema (imports from kumoh/db)
+      schema.ts          # Drizzle schema (imports builders from kumoh/db)
       migrations/        # Generated SQL migration files
     crons/
-      cleanup.ts         # export const schedule + export default handler
+      cleanup.ts         # export const cron + defineScheduled handler
     queues/
-      email.ts           # export const queueName + export default handler
+      email.ts           # defineQueue handler (queue name = filename)
   dist/
     index.js             # Built worker bundle
     wrangler.json        # Auto-generated from kumoh.json
-  .kumoh/                 # Local dev state (D1, KV, R2) -- gitignored
+  .kumoh/
+    schema.d.ts          # Auto-generated TypeScript types for schema
+    v3/d1/...            # Local D1 SQLite (Miniflare state)
 ```
 
-No `wrangler.toml`. No `drizzle.config.ts`. No mock files. No middleware glue. `kumoh.json` declares the intent, Kumoh generates the infrastructure.
+No `wrangler.toml`. No `drizzle.config.ts`. No mock files. No middleware glue. `kumoh.json` declares the intent, `kumoh deploy` provisions the infrastructure.
