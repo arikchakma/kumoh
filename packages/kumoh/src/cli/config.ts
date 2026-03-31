@@ -14,6 +14,7 @@ export interface DeployState {
 export interface KumohJson {
   name?: string;
   schema?: string;
+  crons?: string;
   queues?: string;
   deploy?: DeployState;
 }

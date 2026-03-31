@@ -8,7 +8,8 @@
     "db:generate": "kumoh db generate",
     "db:migrate": "kumoh db migrate",
     "db:studio": "kumoh db studio",
-    "dev": "vp dev"
+    "dev": "vp dev",
+    "kumoh": "kumoh"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.0",
