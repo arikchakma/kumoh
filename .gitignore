@@ -4,4 +4,3 @@ dist
 .kumoh
 .wrangler
 *.tsbuildinfo
-.dev.vars

@@ -42,9 +42,6 @@
     "./email": {
       "types": "./virtual.d.ts"
     },
-    "./env": {
-      "types": "./virtual.d.ts"
-    },
     "./tsconfig": "./tsconfig.base.json"
   },
   "scripts": {

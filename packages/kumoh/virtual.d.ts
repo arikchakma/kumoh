@@ -69,7 +69,3 @@ declare module 'kumoh/ai' {
 declare module 'kumoh/email' {
   export const email: SendEmail;
 }
-
-declare module 'kumoh/env' {
-  export const env: Record<string, unknown>;
-}

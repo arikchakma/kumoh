@@ -1,8 +1,6 @@
 export type KumohConfig = {
   /** App name from kumoh.json. Used for resource naming. */
   appName?: string;
-  /** Environment variables (plain text). */
-  vars?: Record<string, string>;
   /** Path to the Hono app entry. Default: "app/routes/index.ts" */
   routesEntry?: string;
   /** Directory containing cron handlers. Default: "app/crons" */
