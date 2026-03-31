@@ -9,11 +9,15 @@ import {
   VIRTUAL_KV,
   VIRTUAL_STORAGE,
   VIRTUAL_QUEUE,
+  VIRTUAL_AI,
+  VIRTUAL_EMAIL,
   VIRTUAL_ENTRY,
 } from './constants.js';
 import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
 import type { KumohConfig } from './types.js';
+import { generateAiModule } from './virtual/ai.js';
 import { generateDbModule } from './virtual/db.js';
+import { generateEmailModule } from './virtual/email.js';
 import { generateKvModule } from './virtual/kv.js';
 import { generateQueueModule } from './virtual/queue.js';
 import { generateStorageModule } from './virtual/storage.js';
@@ -28,6 +32,8 @@ function createGenerators(
     [VIRTUAL_KV]: generateKvModule,
     [VIRTUAL_STORAGE]: generateStorageModule,
     [VIRTUAL_QUEUE]: generateQueueModule,
+    [VIRTUAL_AI]: generateAiModule,
+    [VIRTUAL_EMAIL]: generateEmailModule,
   };
 }
 

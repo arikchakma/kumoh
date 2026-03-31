@@ -36,6 +36,12 @@
       "types": "./virtual.d.ts",
       "default": "./dist/queue.mjs"
     },
+    "./ai": {
+      "types": "./virtual.d.ts"
+    },
+    "./email": {
+      "types": "./virtual.d.ts"
+    },
     "./tsconfig": "./tsconfig.base.json"
   },
   "scripts": {

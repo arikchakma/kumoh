@@ -63,3 +63,11 @@ declare module 'kumoh/cron' {
     handler: ExportedHandlerScheduledHandler<Env>
   ): ExportedHandlerScheduledHandler<Env>;
 }
+
+declare module 'kumoh/ai' {
+  export const ai: Ai;
+}
+
+declare module 'kumoh/email' {
+  export const email: SendEmail;
+}

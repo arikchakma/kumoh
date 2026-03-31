@@ -78,6 +78,12 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     },
   ];
 
+  // AI binding
+  workerConfig.ai = { binding: 'AI' };
+
+  // Email binding
+  workerConfig.send_email = [{ name: 'EMAIL' }];
+
   if (raw.queues) {
     workerConfig.queues = {
       producers: [
