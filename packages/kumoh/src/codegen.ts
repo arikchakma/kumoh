@@ -95,9 +95,9 @@ function genImports(
 }
 
 /**
- * Generates the cron dispatch block. Builds a `cronMap` that maps schedule
- * strings to arrays of handlers — multiple handlers can share the same
- * schedule and all run in parallel via `Promise.all`.
+ * Generates the cron dispatch block. Builds a `cronMap` that maps each
+ * schedule string to its handler. Duplicate schedules are caught at scan
+ * time so each schedule has exactly one handler — clean retry semantics.
  *
  * Returns `false` when there are no crons so `genModule` filters it out.
  */
@@ -106,21 +106,19 @@ function genScheduledBlock(cronVars: CronVar[]): string | false {
     return false;
   }
 
-  const registrations = cronVars
-    .map(
-      ({ schedule, handler }) =>
-        `(cronMap[${schedule}] ??= []).push(${handler});`
-    )
+  const mapEntries = cronVars
+    .map(({ schedule, handler }) => `  [${schedule}]: ${handler},`)
     .join('\n');
 
   const body = [
-    'const handlers = cronMap[controller.cron] ?? [];',
-    'await Promise.all(handlers.map((h) => h(controller, env, ctx)));',
+    'const handler = cronMap[controller.cron];',
+    'if (handler) {',
+    '  await handler(controller, env, ctx);',
+    '}',
   ].join('\n');
 
   return [
-    'const cronMap = {};',
-    registrations,
+    `const cronMap = {\n${mapEntries}\n};`,
     '',
     genAsyncFn('handleScheduled', ['controller', 'env', 'ctx'], body),
   ].join('\n');

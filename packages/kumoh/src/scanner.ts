@@ -81,7 +81,7 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   }
   const files = fg.sync('**/*.{ts,js}', { cwd: absDir });
 
-  return files
+  const crons = files
     .filter((f) => !basename(f).startsWith('_'))
     .map((file) => {
       const filePath = resolve(absDir, file);
@@ -99,6 +99,20 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
       };
     })
     .filter((c) => c.schedule !== '');
+
+  const seen = new Map<string, string>();
+  for (const cron of crons) {
+    const existing = seen.get(cron.schedule);
+    if (existing) {
+      throw new Error(
+        `[kumoh] Duplicate cron schedule "${cron.schedule}" in ${existing} and ${cron.name}.ts.\n` +
+          'Each schedule must have exactly one handler. Use a single file per schedule, or use different schedules.'
+      );
+    }
+    seen.set(cron.schedule, cron.name);
+  }
+
+  return crons;
 }
 
 export function scanQueues(root: string, queuesDir: string): ScannedQueue[] {
