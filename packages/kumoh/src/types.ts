@@ -1,11 +1,11 @@
 export interface KumohConfig {
-  /** Path to the Hono app entry. Default: "routes.ts" or "routes/index.ts" */
+  /** Path to the Hono app entry. Default: "app/routes/index.ts" */
   routesEntry?: string;
-  /** Directory containing cron handlers. Default: "crons" */
+  /** Directory containing cron handlers. Default: "app/crons" */
   cronsDir?: string;
-  /** Directory containing queue handlers. Default: "queues" */
+  /** Directory containing queue handlers. Default: "app/queues" */
   queuesDir?: string;
-  /** Path to DB schema file. Default: "db/schema.ts" */
+  /** Path to DB schema file. Default: "app/db/schema.ts" */
   schemaPath?: string;
 }
 
