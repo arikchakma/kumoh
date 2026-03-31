@@ -17,14 +17,19 @@ import { generateStorageModule } from './virtual/storage.js';
 
 type ModuleGenerator = () => string;
 
-const MODULE_GENERATORS: Record<string, ModuleGenerator> = {
-  [VIRTUAL_DB]: generateDbModule,
-  [VIRTUAL_KV]: generateKvModule,
-  [VIRTUAL_STORAGE]: generateStorageModule,
-};
+function createGenerators(
+  config: KumohConfig
+): Record<string, ModuleGenerator> {
+  return {
+    [VIRTUAL_DB]: () => generateDbModule(config.schemaPath),
+    [VIRTUAL_KV]: generateKvModule,
+    [VIRTUAL_STORAGE]: generateStorageModule,
+  };
+}
 
 export function virtualModules(config: KumohConfig): Plugin {
   let root: string;
+  let generators: Record<string, ModuleGenerator>;
 
   return {
     name: 'kumoh:virtual-modules',
@@ -32,10 +37,11 @@ export function virtualModules(config: KumohConfig): Plugin {
 
     configResolved(cfg: ResolvedConfig) {
       root = cfg.root;
+      generators = createGenerators(config);
     },
 
     resolveId(id: string) {
-      if (MODULE_GENERATORS[id]) {
+      if (generators[id]) {
         return '\0' + id;
       }
       if (id === VIRTUAL_ENTRY) {
@@ -51,8 +57,8 @@ export function virtualModules(config: KumohConfig): Plugin {
 
       const moduleId = id.slice(1);
 
-      if (MODULE_GENERATORS[moduleId]) {
-        return MODULE_GENERATORS[moduleId]();
+      if (generators[moduleId]) {
+        return generators[moduleId]();
       }
 
       if (moduleId === VIRTUAL_ENTRY) {
