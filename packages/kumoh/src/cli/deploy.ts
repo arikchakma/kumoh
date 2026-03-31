@@ -9,6 +9,14 @@ import { loadConfig, migrationsDir, root, saveConfig } from './config.js';
 import { log } from './log.js';
 import { wrangler, wranglerExec } from './wrangler.js';
 
+function parseJson<T>(raw: string, context: string): T {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(`[kumoh] Failed to parse JSON from ${context}:\n${raw}`);
+  }
+}
+
 async function provisionD1(name: string, state: DeployState): Promise<void> {
   if (state.d1) {
     log.ok(`D1 database "${name}" (${state.d1.slice(0, 8)}…) — exists`);
@@ -16,16 +24,20 @@ async function provisionD1(name: string, state: DeployState): Promise<void> {
   }
 
   try {
-    const info = await wrangler(`d1 info ${name} --json`);
-    const { uuid } = JSON.parse(info);
-    state.d1 = uuid;
-    log.ok(`D1 database "${name}" (${uuid.slice(0, 8)}…) — found`);
+    const info = parseJson<{ uuid: string }>(
+      await wrangler(`d1 info ${name} --json`),
+      'wrangler d1 info'
+    );
+    state.d1 = info.uuid;
+    log.ok(`D1 database "${name}" (${info.uuid.slice(0, 8)}…) — found`);
   } catch {
     await wrangler(`d1 create ${name}`);
-    const info = await wrangler(`d1 info ${name} --json`);
-    const { uuid } = JSON.parse(info);
-    state.d1 = uuid;
-    log.ok(`D1 database "${name}" (${uuid.slice(0, 8)}…) — created`);
+    const info = parseJson<{ uuid: string }>(
+      await wrangler(`d1 info ${name} --json`),
+      'wrangler d1 info'
+    );
+    state.d1 = info.uuid;
+    log.ok(`D1 database "${name}" (${info.uuid.slice(0, 8)}…) — created`);
   }
 }
 
@@ -35,10 +47,11 @@ async function provisionKV(name: string, state: DeployState): Promise<void> {
     return;
   }
 
-  const list = JSON.parse(await wrangler('kv namespace list'));
-  const existing = (list as Array<{ id: string; title: string }>).find(
-    (ns) => ns.title === name
+  const list = parseJson<Array<{ id: string; title: string }>>(
+    await wrangler('kv namespace list'),
+    'wrangler kv namespace list'
   );
+  const existing = list.find((ns) => ns.title === name);
 
   if (existing) {
     state.kv = existing.id;
@@ -47,12 +60,18 @@ async function provisionKV(name: string, state: DeployState): Promise<void> {
   }
 
   await wrangler(`kv namespace create ${name}`);
-  const listAfter = JSON.parse(await wrangler('kv namespace list'));
-  const created = (listAfter as Array<{ id: string; title: string }>).find(
-    (ns) => ns.title === name
+  const listAfter = parseJson<Array<{ id: string; title: string }>>(
+    await wrangler('kv namespace list'),
+    'wrangler kv namespace list'
   );
-  state.kv = created!.id;
-  log.ok(`KV namespace (${created!.id.slice(0, 8)}…) — created`);
+  const created = listAfter.find((ns) => ns.title === name);
+  if (!created) {
+    throw new Error(
+      `[kumoh] KV namespace "${name}" was created but not found in namespace list`
+    );
+  }
+  state.kv = created.id;
+  log.ok(`KV namespace (${created.id.slice(0, 8)}…) — created`);
 }
 
 async function provisionR2(name: string): Promise<void> {
@@ -75,17 +94,21 @@ async function provisionQueue(name: string): Promise<void> {
 
 async function patchWranglerConfig(state: DeployState): Promise<void> {
   const wranglerPath = resolve(root, 'dist', 'wrangler.json');
-  const config = JSON.parse(await readFile(wranglerPath, 'utf-8'));
+  const config = parseJson<Record<string, unknown>>(
+    await readFile(wranglerPath, 'utf-8'),
+    'dist/wrangler.json'
+  );
 
-  if (state.d1 && config.d1_databases?.length) {
-    config.d1_databases[0].database_id = state.d1;
+  if (state.d1 && Array.isArray(config.d1_databases)) {
+    (config.d1_databases as Array<Record<string, unknown>>)[0].database_id =
+      state.d1;
   }
 
-  if (state.kv && config.kv_namespaces?.length) {
-    config.kv_namespaces[0].id = state.kv;
+  if (state.kv && Array.isArray(config.kv_namespaces)) {
+    (config.kv_namespaces as Array<Record<string, unknown>>)[0].id = state.kv;
   }
 
-  await writeFile(wranglerPath, JSON.stringify(config));
+  await writeFile(wranglerPath, JSON.stringify(config, null, 2));
 }
 
 async function applyMigrations(
@@ -102,8 +125,9 @@ async function applyMigrations(
     return;
   }
 
-  const journal: MigrationJournal = JSON.parse(
-    await readFile(journalPath, 'utf-8')
+  const journal = parseJson<MigrationJournal>(
+    await readFile(journalPath, 'utf-8'),
+    'migrations journal'
   );
   const applied = new Set(state.migrations);
   const pending = journal.entries.filter((e) => !applied.has(e.tag));

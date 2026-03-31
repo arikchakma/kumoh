@@ -8,12 +8,14 @@ import {
   VIRTUAL_DB,
   VIRTUAL_KV,
   VIRTUAL_STORAGE,
+  VIRTUAL_QUEUE,
   VIRTUAL_ENTRY,
 } from './constants.js';
 import { findRoutesEntry, scanCrons, scanQueues } from './scanner.js';
 import type { KumohConfig } from './types.js';
 import { generateDbModule } from './virtual/db.js';
 import { generateKvModule } from './virtual/kv.js';
+import { generateQueueModule } from './virtual/queue.js';
 import { generateStorageModule } from './virtual/storage.js';
 
 type ModuleGenerator = () => string;
@@ -25,6 +27,7 @@ function createGenerators(
     [VIRTUAL_DB]: () => generateDbModule(config.schemaPath),
     [VIRTUAL_KV]: generateKvModule,
     [VIRTUAL_STORAGE]: generateStorageModule,
+    [VIRTUAL_QUEUE]: generateQueueModule,
   };
 }
 
@@ -89,8 +92,8 @@ export function virtualModules(config: KumohConfig): Plugin {
             '[kumoh] No routes entry found. Create app/routes/index.ts'
           );
         }
-        const crons = scanCrons(root, config.cronsDir ?? 'crons');
-        const queues = scanQueues(root, config.queuesDir ?? 'queues');
+        const crons = scanCrons(root, config.cronsDir!);
+        const queues = scanQueues(root, config.queuesDir!);
         return generateWorkerEntry(routesEntry, crons, queues);
       }
 
