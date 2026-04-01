@@ -1,7 +1,6 @@
-import { existsSync } from 'node:fs';
-
 import { defineCommand } from 'citty';
 
+import { scanQueues } from '../server/scanner.ts';
 import { loadConfig, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirmWithInput } from './prompt.ts';
@@ -47,7 +46,7 @@ export const destroy = defineCommand({
       console.log(`  KV:      ${appName}-kv (${deploy.kv.slice(0, 8)}…)`);
     }
     console.log(`  R2:      ${appName}-bucket`);
-    if (existsSync('app/queues')) {
+    if (scanQueues('.', 'app/queues', appName).length) {
       console.log(`  Queue:   ${appName}-queue`);
     }
 
@@ -66,7 +65,7 @@ export const destroy = defineCommand({
       wrangler(`delete --name ${appName} --force`)
     );
 
-    if (existsSync('app/queues')) {
+    if (scanQueues('.', 'app/queues', appName).length) {
       await tryDelete(`Queue "${appName}-queue"`, () =>
         wrangler(`queues delete ${appName}-queue`)
       );

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { scanCrons } from '../server/scanner.ts';
+import { scanCrons, scanQueues } from '../server/scanner.ts';
 import type { MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir } from './config.ts';
 
@@ -43,7 +43,7 @@ export const status = defineCommand({
 
     row('R2', `${appName}-bucket`);
 
-    if (existsSync('app/queues')) {
+    if (scanQueues('.', 'app/queues', appName).length) {
       row('Queue', `${appName}-queue`);
     }
 

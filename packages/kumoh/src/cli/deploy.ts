@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 
 import { defineCommand } from 'citty';
 
+import { scanQueues } from '../server/scanner.ts';
 import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
@@ -187,7 +188,7 @@ export const deploy = defineCommand({
     }
     await provisionKV(`${appName}-kv`, state);
     await provisionR2(`${appName}-bucket`);
-    if (existsSync('app/queues')) {
+    if (scanQueues('.', 'app/queues', appName).length) {
       await provisionQueue(`${appName}-queue`);
     }
 
