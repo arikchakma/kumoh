@@ -7,7 +7,7 @@ import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
  * calls `defineWorker()` at runtime. All wiring logic lives in
  * `create-app.ts`, not in generated strings.
  */
-export function generateWorkerEntry(
+export function buildWorkerEntry(
   serverEntry: string,
   routeGroups: ScannedRouteGroup[],
   crons: ScannedCron[],

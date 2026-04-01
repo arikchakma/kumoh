@@ -8,7 +8,7 @@ import { defineCommand } from 'citty';
 import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
-import { wrangler, wranglerExec } from './wrangler.ts';
+import { ensureLoggedIn, wrangler, wranglerExec } from './wrangler.ts';
 
 function parseJson<T>(raw: string, context: string): T {
   try {
@@ -167,6 +167,8 @@ export const deploy = defineCommand({
     description: 'Build, provision, and deploy to Cloudflare',
   },
   async run() {
+    await ensureLoggedIn();
+
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
     const state: DeployState = {
@@ -183,7 +185,7 @@ export const deploy = defineCommand({
     if (existsSync('app/db/schema.ts')) {
       await provisionD1(`${appName}-db`, state);
     }
-    await provisionKV(appName, state);
+    await provisionKV(`${appName}-kv`, state);
     await provisionR2(`${appName}-bucket`);
     if (existsSync('app/queues')) {
       await provisionQueue(`${appName}-queue`);

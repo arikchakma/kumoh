@@ -38,7 +38,7 @@ export const status = defineCommand({
     }
 
     if (deploy.kv) {
-      row('KV', `${appName} (${deploy.kv.slice(0, 8)}…)`);
+      row('KV', `${appName}-kv (${deploy.kv.slice(0, 8)}…)`);
     }
 
     row('R2', `${appName}-bucket`);

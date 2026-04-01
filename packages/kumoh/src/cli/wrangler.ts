@@ -3,12 +3,77 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
 import { root } from './config.ts';
+import { log } from './log.ts';
+import { confirm } from './prompt.ts';
 
 function resolveBin(): string {
   const req = createRequire(
     resolve(root, 'node_modules', 'kumoh', 'package.json')
   );
   return req.resolve('wrangler/bin/wrangler.js');
+}
+
+function run(cmd: string): Promise<{ code: number; stdout: string }> {
+  return new Promise((resolve) => {
+    let stdout = '';
+    const child = spawn(cmd, { cwd: root, shell: true, stdio: 'pipe' });
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()));
+    child.stderr?.on('data', () => {});
+    child.on('close', (code) => resolve({ code: code ?? 1, stdout }));
+  });
+}
+
+export async function checkWrangler(): Promise<void> {
+  const { code } = await run('npx wrangler --version');
+  if (code !== 0) {
+    log.warn('Wrangler is not installed.');
+    const install = await confirm('Install wrangler?');
+    if (!install) {
+      console.error(
+        'Wrangler is required. Install it with: pnpm add -D wrangler'
+      );
+      process.exit(1);
+    }
+    const child = spawn('pnpm add -D wrangler', {
+      cwd: root,
+      shell: true,
+      stdio: 'inherit',
+    });
+    const installCode = await new Promise<number>((r) =>
+      child.on('close', (c) => r(c ?? 1))
+    );
+    if (installCode !== 0) {
+      console.error('Failed to install wrangler.');
+      process.exit(1);
+    }
+    log.ok('Wrangler installed');
+  }
+}
+
+export async function ensureLoggedIn(): Promise<void> {
+  const bin = resolveBin();
+  const { code } = await run(`node ${bin} whoami`);
+  if (code !== 0) {
+    log.warn('Not logged in to Cloudflare.');
+    const login = await confirm('Log in now?');
+    if (!login) {
+      console.error('Login required. Run: npx wrangler login');
+      process.exit(1);
+    }
+    const child = spawn(`node ${bin} login`, {
+      cwd: root,
+      shell: true,
+      stdio: 'inherit',
+    });
+    const loginCode = await new Promise<number>((r) =>
+      child.on('close', (c) => r(c ?? 1))
+    );
+    if (loginCode !== 0) {
+      console.error('Login failed.');
+      process.exit(1);
+    }
+    log.ok('Logged in to Cloudflare');
+  }
 }
 
 export async function wrangler(args: string): Promise<string> {

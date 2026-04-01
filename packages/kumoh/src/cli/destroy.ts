@@ -1,21 +1,11 @@
 import { existsSync } from 'node:fs';
-import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
 
 import { loadConfig, saveConfig } from './config.ts';
 import { log } from './log.ts';
+import { confirmWithInput } from './prompt.ts';
 import { wrangler } from './wrangler.ts';
-
-async function confirm(appName: string): Promise<boolean> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(`\nType "${appName}" to confirm destruction: `, (answer) => {
-      rl.close();
-      resolve(answer.trim() === appName);
-    });
-  });
-}
 
 async function tryDelete(
   label: string,
@@ -54,14 +44,17 @@ export const destroy = defineCommand({
       console.log(`  D1:      ${appName}-db (${deploy.d1.slice(0, 8)}…)`);
     }
     if (deploy.kv) {
-      console.log(`  KV:      ${appName} (${deploy.kv.slice(0, 8)}…)`);
+      console.log(`  KV:      ${appName}-kv (${deploy.kv.slice(0, 8)}…)`);
     }
     console.log(`  R2:      ${appName}-bucket`);
     if (existsSync('app/queues')) {
       console.log(`  Queue:   ${appName}-queue`);
     }
 
-    const confirmed = await confirm(appName);
+    const confirmed = await confirmWithInput(
+      `Type "${appName}" to confirm destruction`,
+      appName
+    );
     if (!confirmed) {
       console.log('\nAborted.');
       process.exit(0);

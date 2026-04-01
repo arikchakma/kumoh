@@ -20,7 +20,7 @@ import { generateEmailModule } from '../virtual/email.ts';
 import { generateKvModule } from '../virtual/kv.ts';
 import { generateQueueModule } from '../virtual/queue.ts';
 import { generateStorageModule } from '../virtual/storage.ts';
-import { generateWorkerEntry } from './codegen.ts';
+import { buildWorkerEntry } from './codegen.ts';
 import {
   findServerEntry,
   groupRoutesByDirectory,
@@ -297,7 +297,7 @@ export function virtualModules(config: KumohConfig): Plugin {
           config.queuesDir!,
           config.appName ?? 'kumoh-app'
         );
-        return generateWorkerEntry(serverEntry, routeGroups, crons, queues);
+        return buildWorkerEntry(serverEntry, routeGroups, crons, queues);
       }
 
       return null;

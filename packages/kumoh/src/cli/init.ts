@@ -1,22 +1,12 @@
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
-import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
 
+import { slugify } from '../lib/slugger.ts';
 import { log } from './log.ts';
-
-const root = process.cwd();
-
-async function prompt(question: string, fallback: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(`${question} (${fallback}): `, (answer) => {
-      rl.close();
-      resolve(answer.trim() || fallback);
-    });
-  });
-}
+import { prompt } from './prompt.ts';
+import { checkWrangler } from './wrangler.ts';
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -101,8 +91,7 @@ dist
           '@cloudflare/workers-types': '^4.20250312.0',
           'drizzle-kit': '^0.30.0',
           typescript: '^5.7.0',
-          vite: 'catalog:',
-          'vite-plus': 'catalog:',
+          'vite-plus': '^0.1.14',
         },
       },
       null,
@@ -116,55 +105,63 @@ export const init = defineCommand({
     description: 'Create a new Kumoh project',
   },
   async run() {
-    const defaultName = basename(root);
+    await checkWrangler();
 
-    if (await exists(resolve(root, 'kumoh.json'))) {
+    const input = await prompt(
+      'App name or "." for current directory',
+      basename(process.cwd())
+    );
+    const name = slugify(input === '.' ? basename(process.cwd()) : input);
+    const dir = input === '.' ? process.cwd() : resolve(process.cwd(), name);
+
+    if (await exists(resolve(dir, 'kumoh.json'))) {
       console.error('kumoh.json already exists in this directory.');
       process.exit(1);
     }
 
-    const name = await prompt('App name', defaultName);
+    log.step(`Creating project "${name}"...`);
 
-    log.step('Creating project...');
+    await mkdir(resolve(dir, 'app/routes'), { recursive: true });
+    await mkdir(resolve(dir, 'app/db'), { recursive: true });
+    await mkdir(resolve(dir, 'app/crons'), { recursive: true });
+    await mkdir(resolve(dir, 'app/queues'), { recursive: true });
 
-    await mkdir(resolve(root, 'app/routes'), { recursive: true });
-    await mkdir(resolve(root, 'app/db'), { recursive: true });
-    await mkdir(resolve(root, 'app/crons'), { recursive: true });
-    await mkdir(resolve(root, 'app/queues'), { recursive: true });
-
-    await writeFile(resolve(root, 'kumoh.json'), templates.kumohJson(name));
+    await writeFile(resolve(dir, 'kumoh.json'), templates.kumohJson(name));
     log.ok('kumoh.json');
 
-    await writeFile(resolve(root, 'vite.config.ts'), templates.viteConfig);
+    await writeFile(resolve(dir, 'vite.config.ts'), templates.viteConfig);
     log.ok('vite.config.ts');
 
-    await writeFile(resolve(root, 'tsconfig.json'), templates.tsconfig);
+    await writeFile(resolve(dir, 'tsconfig.json'), templates.tsconfig);
     log.ok('tsconfig.json');
 
-    await writeFile(resolve(root, 'app/server.ts'), templates.server);
+    await writeFile(resolve(dir, 'app/server.ts'), templates.server);
     log.ok('app/server.ts');
 
-    await writeFile(resolve(root, 'app/routes/index.ts'), templates.routeIndex);
+    await writeFile(resolve(dir, 'app/routes/index.ts'), templates.routeIndex);
     log.ok('app/routes/index.ts');
 
-    await writeFile(resolve(root, 'app/db/schema.ts'), templates.schema);
+    await writeFile(resolve(dir, 'app/db/schema.ts'), templates.schema);
     log.ok('app/db/schema.ts');
 
-    if (!(await exists(resolve(root, 'package.json')))) {
+    if (!(await exists(resolve(dir, 'package.json')))) {
       await writeFile(
-        resolve(root, 'package.json'),
+        resolve(dir, 'package.json'),
         templates.packageJson(name)
       );
       log.ok('package.json');
     }
 
-    if (!(await exists(resolve(root, '.gitignore')))) {
-      await writeFile(resolve(root, '.gitignore'), templates.gitignore);
+    if (!(await exists(resolve(dir, '.gitignore')))) {
+      await writeFile(resolve(dir, '.gitignore'), templates.gitignore);
       log.ok('.gitignore');
     }
 
     log.done(`Project "${name}" created`);
-    console.log('\nNext steps:');
+
+    if (input !== '.') {
+      console.log(`\n  cd ${name}`);
+    }
     console.log('  pnpm install');
     console.log('  kumoh db generate');
     console.log('  vp dev');
