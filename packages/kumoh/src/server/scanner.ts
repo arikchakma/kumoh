@@ -4,7 +4,14 @@ import { basename, dirname, extname, isAbsolute, resolve } from 'node:path';
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
-import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from './types.ts';
+import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
+import {
+  dirToMountPath,
+  fileToSubPath,
+  findInheritedMiddleware,
+  sortByDepth,
+  sortSubPaths,
+} from './utils/file.ts';
 
 export function findServerEntry(
   root: string,
@@ -28,28 +35,11 @@ export function findServerEntry(
 }
 
 /**
- * Converts a filename (without directory prefix) to a Hono sub-path.
- * This is the path RELATIVE to the directory mount point.
+ * Groups route files by directory, attaches middleware (with inheritance),
+ * and sorts directories shallow→deep (matching HonoX's pattern).
  *
- * - `index.ts` → `/`
- * - `hello.ts` → `/hello`
- * - `$id.ts` → `/:id`
- * - `$...slug.ts` → `/:slug{.+}`
- */
-function fileToSubPath(filename: string): string {
-  let route = filename.replace(/\.(ts|js)$/, '').replace(/^index$/, '');
-
-  route = route.replace(/\$\.\.\.([^/]+)/g, ':$1{.+}');
-  route = route.replace(/\$([^/]+)/g, ':$1');
-
-  return '/' + route;
-}
-
-/**
- * Groups route files by directory, attaches middleware, and sorts
- * directories shallow→deep (matching HonoX's `sortDirectoriesByDepth`).
- *
- * Each group becomes a Hono sub-app mounted at the directory's path.
+ * Middleware inheritance: if a directory has no `_middleware.ts`, the nearest
+ * ancestor's middleware is inherited (matching HonoX lines 229-252).
  */
 export function groupRoutesByDirectory(
   root: string,
@@ -77,25 +67,47 @@ export function groupRoutesByDirectory(
     }
   }
 
-  // Group routes by directory
-  const dirMap = new Map<string, ScannedRouteGroup>();
-
-  // Ensure directories with only middleware also get a group
-  for (const [dir, mwPath] of middlewareMap) {
-    if (!dirMap.has(dir)) {
-      const mountPath = dir ? `/${dir}` : '/';
-      dirMap.set(dir, { mountPath, middlewarePath: mwPath, routes: [] });
-    } else {
-      dirMap.get(dir)!.middlewarePath = mwPath;
-    }
+  // Collect all unique directories
+  const allDirs = new Set<string>();
+  for (const [dir] of middlewareMap) {
+    allDirs.add(dir);
+  }
+  for (const { dir } of routeFiles) {
+    allDirs.add(dir);
   }
 
-  for (const { file, dir, name } of routeFiles) {
-    if (!dirMap.has(dir)) {
-      const mountPath = dir ? `/${dir}` : '/';
-      dirMap.set(dir, { mountPath, routes: [] });
+  // Build groups with middleware inheritance
+  const dirMap = new Map<string, ScannedRouteGroup>();
+  const appliedMiddlewareDirs = new Set<string>();
+
+  for (const dir of sortByDepth([...allDirs])) {
+    const mwPath = findInheritedMiddleware(
+      dir,
+      middlewareMap,
+      appliedMiddlewareDirs
+    );
+
+    const group: ScannedRouteGroup = {
+      mountPath: dirToMountPath(dir),
+      routes: [],
+    };
+
+    if (mwPath) {
+      group.middlewarePath = mwPath;
+      // Track that this middleware has been applied at this directory level
+      const mwDir = [...middlewareMap.entries()].find(
+        ([_, p]) => p === mwPath
+      )?.[0];
+      if (mwDir !== undefined) {
+        appliedMiddlewareDirs.add(mwDir);
+      }
     }
 
+    dirMap.set(dir, group);
+  }
+
+  // Add routes to their groups
+  for (const { file, dir, name } of routeFiles) {
     const group = dirMap.get(dir)!;
     group.routes.push({
       importPath: resolve(absDir, file),
@@ -105,33 +117,12 @@ export function groupRoutesByDirectory(
 
   // Sort routes within each directory: static before dynamic
   for (const group of dirMap.values()) {
-    group.routes.sort((a, b) => {
-      const aIsDynamic = a.subPath.includes(':');
-      const bIsDynamic = b.subPath.includes(':');
-      if (aIsDynamic && !bIsDynamic) {
-        return 1;
-      }
-      if (!aIsDynamic && bIsDynamic) {
-        return -1;
-      }
-      return a.subPath.localeCompare(b.subPath);
-    });
+    sortSubPaths(group.routes);
   }
 
-  // Sort directories shallow→deep (HonoX: sortDirectoriesByDepth)
-  const sorted = [...dirMap.entries()].sort(([a], [b]) => {
-    const depthA = a ? a.split('/').length : 0;
-    const depthB = b ? b.split('/').length : 0;
-    return depthA - depthB || a.localeCompare(b);
-  });
-
-  // Apply $param conversion to mount paths
-  return sorted.map(([_, group]) => ({
-    ...group,
-    mountPath: group.mountPath
-      .replace(/\$\.\.\.([^/]+)/g, ':$1{.+}')
-      .replace(/\$([^/]+)/g, ':$1'),
-  }));
+  // Return sorted shallow→deep
+  const sorted = sortByDepth([...dirMap.keys()]);
+  return sorted.map((dir) => dirMap.get(dir)!);
 }
 
 /**

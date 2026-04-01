@@ -1,6 +1,6 @@
 import { genImport, genObjectFromRaw, genSafeVariableName } from 'knitwork';
 
-import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from './types.ts';
+import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
 
 type CronVar = {
   handler: string;
@@ -106,15 +106,46 @@ function genAppInit(): string {
  * Each directory gets its own `new Hono()`, middleware + routes are added,
  * then it's mounted on the main app with `app.route(mountPath, sub)`.
  */
+/**
+ * Generates the middleware deduplication helper (HonoX lines 265-278).
+ * Wraps each middleware handler with a WeakMap/WeakSet guard to prevent
+ * double execution when middleware is inherited by child directories.
+ */
+function genMiddlewareHelper(): string {
+  return [
+    'const _mwProcessed = new WeakMap();',
+    'function wrapMw(mw) {',
+    '  if (!_mwProcessed.has(mw)) _mwProcessed.set(mw, new WeakSet());',
+    '  const seen = _mwProcessed.get(mw);',
+    '  return async (c, next) => {',
+    '    if (!seen.has(c.req.raw)) {',
+    '      seen.add(c.req.raw);',
+    '      return mw(c, next);',
+    '    }',
+    '    return next();',
+    '  };',
+    '}',
+  ].join('\n');
+}
+
+/**
+ * Generates per-directory sub-app blocks (HonoX pattern).
+ */
 function genDirectoryBlocks(groups: ScannedRouteGroup[]): string | false {
   if (!groups.length) {
     return false;
   }
 
+  const hasMiddleware = groups.some((g) => g.middlewarePath);
   const blocks: string[] = [];
-  const METHODS =
-    "const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'];";
-  blocks.push(METHODS);
+
+  blocks.push(
+    "const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'];"
+  );
+
+  if (hasMiddleware) {
+    blocks.push(genMiddlewareHelper());
+  }
 
   let mwIdx = 0;
   let routeIdx = 0;
@@ -124,31 +155,37 @@ function genDirectoryBlocks(groups: ScannedRouteGroup[]): string | false {
     lines.push('{');
     lines.push('  const sub = new Hono();');
 
-    // Middleware
+    // Middleware with deduplication wrapping (HonoX pattern)
     if (group.middlewarePath) {
       lines.push(
         `  if (mw_${mwIdx}.default) {`,
-        `    const h = Array.isArray(mw_${mwIdx}.default) ? mw_${mwIdx}.default : [mw_${mwIdx}.default];`,
+        `    const h = (Array.isArray(mw_${mwIdx}.default) ? mw_${mwIdx}.default : [mw_${mwIdx}.default]).map(wrapMw);`,
         "    sub.use('*', ...h);",
         '  }'
       );
       mwIdx++;
     }
 
-    // Routes
+    // Routes — matches HonoX registration order (lines 308-340)
     for (const route of group.routes) {
       const ri = routeIdx++;
       lines.push(
+        // 1. Hono sub-app instance
         `  if (route_${ri}.default && typeof route_${ri}.default === 'object' && 'fetch' in route_${ri}.default) {`,
         `    sub.route('${route.subPath}', route_${ri}.default);`,
-        '  } else {',
-        `    for (const m of METHODS) {`,
-        `      const handler = route_${ri}[m];`,
-        `      if (handler) sub.on(m, '${route.subPath}', ...(Array.isArray(handler) ? handler : [handler]));`,
-        '    }',
-        `    if (route_${ri}.default && typeof route_${ri}.default === 'function' && !route_${ri}.GET) {`,
-        `      sub.get('${route.subPath}', route_${ri}.default);`,
-        '    }',
+        '  }',
+        // 2. Named method exports: export const GET = ...
+        `  for (const m of METHODS) {`,
+        `    const handler = route_${ri}[m];`,
+        `    if (handler) sub.on(m, '${route.subPath}', ...(Array.isArray(handler) ? handler : [handler]));`,
+        '  }',
+        // 3. Array default export: export default [handler1, handler2]
+        `  if (Array.isArray(route_${ri}.default)) {`,
+        `    sub.get('${route.subPath}', ...route_${ri}.default);`,
+        '  }',
+        // 4. Function default export (GET shorthand)
+        `  else if (route_${ri}.default && typeof route_${ri}.default === 'function' && !route_${ri}.GET) {`,
+        `    sub.get('${route.subPath}', route_${ri}.default);`,
         '  }'
       );
     }

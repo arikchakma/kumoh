@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { scanCrons } from '../scanner.ts';
+import { scanCrons } from '../server/scanner.ts';
 import type { MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir } from './config.ts';
 

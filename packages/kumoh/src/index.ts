@@ -4,13 +4,13 @@ import { resolve } from 'node:path';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
-import { virtualModules } from './plugin.ts';
-import { scanCrons, scanQueues } from './scanner.ts';
+import { virtualModules } from './server/plugin.ts';
+import { scanCrons, scanQueues } from './server/scanner.ts';
 import type { KumohConfig } from './types.ts';
 
 export type { KumohConfig } from './types.ts';
-export { defineScheduled } from './scheduled.ts';
-export { defineQueue } from './queue.ts';
+export { defineScheduled } from './factory/scheduled.ts';
+export { defineQueue } from './factory/queue.ts';
 
 type KumohJson = {
   name?: string;
