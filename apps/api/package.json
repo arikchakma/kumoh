@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "@acme/api",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,4 +1,4 @@
-import type { AppType } from 'api/rpc';
+import type { AppType } from '@acme/api/rpc';
 import { hc } from 'hono/client';
 
 export type { InferRequestType, InferResponseType } from 'hono/client';

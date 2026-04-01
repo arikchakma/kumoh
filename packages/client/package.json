@@ -1,5 +1,5 @@
 {
-  "name": "@kumoh/client",
+  "name": "@acme/client",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "api": "workspace:*",
+    "@acme/api": "workspace:*",
     "hono": "^4.12.9"
   },
   "devDependencies": {
