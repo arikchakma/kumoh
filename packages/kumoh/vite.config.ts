@@ -13,7 +13,9 @@ export default defineConfig({
     },
     outDir: 'dist',
     format: 'esm',
-    dts: true,
+    dts: {
+      tsgo: true,
+    },
     sourcemap: true,
     deps: {
       neverBundle: [

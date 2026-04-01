@@ -5,6 +5,7 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vitest: npm:@voidzero-dev/vite-plus-test@latest
   vite-plus: latest
+  wrangler: ^4.79.0
 overrides:
   vite: 'catalog:'
   vitest: 'catalog:'
@@ -15,3 +16,5 @@ peerDependencyRules:
   allowedVersions:
     vite: '*'
     vitest: '*'
+    esbuild: '*'
+    typescript: '*'

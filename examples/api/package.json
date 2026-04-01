@@ -14,22 +14,15 @@
     "dev": "vp dev"
   },
   "dependencies": {
-    "drizzle-orm": "^0.38.0",
-    "hono": "^4.7.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.9",
     "kumoh": "workspace:*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250312.0",
-    "drizzle-kit": "^0.30.0",
-    "typescript": "~5.9.3",
-    "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-    "vite-plus": "latest"
-  },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "vite": "npm:@voidzero-dev/vite-plus-core@latest",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@latest"
-    }
+    "@cloudflare/workers-types": "^4.20260401.1",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "~6.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }
