@@ -23,18 +23,20 @@ function run(cmd: string): Promise<{ code: number; stdout: string }> {
   });
 }
 
-export async function checkWrangler(): Promise<void> {
-  const { code } = await run('npx wrangler --version');
+async function checkDep(
+  name: string,
+  checkCmd: string,
+  installCmd: string
+): Promise<void> {
+  const { code } = await run(checkCmd);
   if (code !== 0) {
-    log.warn('Wrangler is not installed.');
-    const install = await confirm('Install wrangler?');
+    log.warn(`${name} is not installed.`);
+    const install = await confirm(`Install ${name}?`);
     if (!install) {
-      console.error(
-        'Wrangler is required. Install it with: pnpm add -D wrangler'
-      );
+      console.error(`${name} is required. Install it with: ${installCmd}`);
       process.exit(1);
     }
-    const child = spawn('pnpm add -D wrangler', {
+    const child = spawn(installCmd, {
       cwd: root,
       shell: true,
       stdio: 'inherit',
@@ -43,10 +45,23 @@ export async function checkWrangler(): Promise<void> {
       child.on('close', (c) => r(c ?? 1))
     );
     if (installCode !== 0) {
-      console.error('Failed to install wrangler.');
+      console.error(`Failed to install ${name}.`);
       process.exit(1);
     }
-    log.ok('Wrangler installed');
+    log.ok(`${name} installed`);
+  }
+}
+
+export async function checkWrangler(): Promise<void> {
+  await checkDep('wrangler', 'npx wrangler --version', 'pnpm add -D wrangler');
+}
+
+export async function checkVitePlus(): Promise<void> {
+  const { code } = await run('vp --version');
+  if (code !== 0) {
+    log.warn('vite-plus is not installed.');
+    console.error('Install it: https://viteplus.dev/guide/');
+    process.exit(1);
   }
 }
 

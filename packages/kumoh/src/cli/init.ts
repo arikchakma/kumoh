@@ -1,12 +1,14 @@
-import { access, mkdir, writeFile } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import { spawn } from 'node:child_process';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { defineCommand } from 'citty';
 
 import { slugify } from '../lib/slugger.ts';
 import { log } from './log.ts';
-import { prompt } from './prompt.ts';
-import { checkWrangler } from './wrangler.ts';
+import { confirm, prompt } from './prompt.ts';
+import { checkVitePlus, checkWrangler } from './wrangler.ts';
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -15,6 +17,35 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function getVersion(): Promise<string> {
+  try {
+    const pkgPath = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '..',
+      '..',
+      'package.json'
+    );
+    const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
+    return pkg.version ?? '0.1.0';
+  } catch {
+    return '0.1.0';
+  }
+}
+
+function exec(cmd: string, cwd: string): Promise<number> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, { cwd, shell: true, stdio: 'inherit' });
+    child.on('close', (code) => resolve(code ?? 1));
+  });
+}
+
+function execSilent(cmd: string, cwd: string): Promise<number> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, { cwd, shell: true, stdio: 'pipe' });
+    child.on('close', (code) => resolve(code ?? 1));
+  });
 }
 
 const templates = {
@@ -68,7 +99,7 @@ dist
 *.tsbuildinfo
 `,
 
-  packageJson: (name: string) =>
+  packageJson: (name: string, version: string) =>
     JSON.stringify(
       {
         name,
@@ -83,7 +114,7 @@ dist
           deploy: 'kumoh deploy',
         },
         dependencies: {
-          kumoh: 'latest',
+          kumoh: `^${version}`,
           hono: '^4.7.0',
           'drizzle-orm': '^0.38.0',
         },
@@ -104,13 +135,23 @@ export const init = defineCommand({
     name: 'init',
     description: 'Create a new Kumoh project',
   },
-  async run() {
+  args: {
+    name: {
+      type: 'positional',
+      description: 'Project name or "." for current directory',
+      required: false,
+    },
+  },
+  async run({ args }) {
+    await checkVitePlus();
     await checkWrangler();
 
-    const input = await prompt(
-      'App name or "." for current directory',
-      basename(process.cwd())
-    );
+    const input =
+      (args.name as string | undefined) ??
+      (await prompt(
+        'App name or "." for current directory',
+        basename(process.cwd())
+      ));
     const name = slugify(input === '.' ? basename(process.cwd()) : input);
     const dir = input === '.' ? process.cwd() : resolve(process.cwd(), name);
 
@@ -118,6 +159,8 @@ export const init = defineCommand({
       console.error('kumoh.json already exists in this directory.');
       process.exit(1);
     }
+
+    const version = await getVersion();
 
     log.step(`Creating project "${name}"...`);
 
@@ -147,7 +190,7 @@ export const init = defineCommand({
     if (!(await exists(resolve(dir, 'package.json')))) {
       await writeFile(
         resolve(dir, 'package.json'),
-        templates.packageJson(name)
+        templates.packageJson(name, version)
       );
       log.ok('package.json');
     }
@@ -157,12 +200,45 @@ export const init = defineCommand({
       log.ok('.gitignore');
     }
 
+    // Install dependencies
+    const shouldInstall = await confirm('Install dependencies?');
+    if (shouldInstall) {
+      log.step('Installing dependencies...');
+      const code = await exec('pnpm install', dir);
+      if (code === 0) {
+        log.ok('Dependencies installed');
+      } else {
+        log.warn('Install failed — run `pnpm install` manually');
+      }
+    }
+
+    // Git init
+    const isGitRepo = await exists(resolve(dir, '.git'));
+    if (!isGitRepo) {
+      const shouldGit = await confirm('Initialize git repository?');
+      if (shouldGit) {
+        const gitOk =
+          (await execSilent('git init', dir)) === 0 &&
+          (await execSilent('git checkout -b main', dir)) === 0 &&
+          (await execSilent('git add -A', dir)) === 0 &&
+          (await execSilent('git commit -m "initial commit"', dir)) === 0;
+        if (gitOk) {
+          log.ok('Git repository initialized');
+        } else {
+          log.warn('Git init failed — initialize manually');
+        }
+      }
+    }
+
     log.done(`Project "${name}" created`);
+    console.log('');
 
     if (input !== '.') {
-      console.log(`\n  cd ${name}`);
+      console.log(`  cd ${name}`);
     }
-    console.log('  pnpm install');
+    if (!shouldInstall) {
+      console.log('  pnpm install');
+    }
     console.log('  kumoh db generate');
     console.log('  vp dev');
     console.log('');
