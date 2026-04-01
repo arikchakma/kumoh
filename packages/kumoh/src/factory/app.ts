@@ -6,9 +6,11 @@ export function defineApp<E extends Env = Env>(
   return init;
 }
 
-export function defineHandler<P extends string = any, E extends Env = Env>(
-  handler: (c: Context<E, P>) => Response | Promise<Response>
-): (c: Context<E, P>) => Response | Promise<Response> {
+export function defineHandler<
+  P extends string = any,
+  E extends Env = Env,
+  R = any,
+>(handler: (c: Context<E, P>) => R): (c: Context<E, P>) => R {
   return handler;
 }
 

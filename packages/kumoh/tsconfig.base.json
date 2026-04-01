@@ -20,7 +20,8 @@
   "include": [
     "${configDir}/app",
     "${configDir}/*.ts",
-    "${configDir}/.kumoh/kumoh.d.ts"
+    "${configDir}/.kumoh/kumoh.d.ts",
+    "${configDir}/.kumoh/rpc.ts"
   ],
   "exclude": ["${configDir}/dist", "${configDir}/node_modules"]
 }
