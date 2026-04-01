@@ -69,3 +69,30 @@ declare module 'kumoh/ai' {
 declare module 'kumoh/email' {
   export const email: SendEmail;
 }
+
+declare module 'kumoh/app' {
+  import type { Context, Env, Hono, Next } from 'hono';
+  export function defineApp<E extends Env = Env>(
+    init: (app: Hono<E>) => void
+  ): (app: Hono<E>) => void;
+  export function defineRoute<E extends Env = Env>(
+    handler: (c: Context<E>) => Response | Promise<Response>
+  ): (c: Context<E>) => Response | Promise<Response>;
+  export function defineMiddleware<E extends Env = Env>(
+    handler: (c: Context<E>, next: Next) => Response | Promise<Response | void>
+  ): (c: Context<E>, next: Next) => Response | Promise<Response | void>;
+}
+
+declare module 'kumoh/route' {
+  import type { Context, Env } from 'hono';
+  export function defineRoute<E extends Env = Env>(
+    handler: (c: Context<E>) => Response | Promise<Response>
+  ): (c: Context<E>) => Response | Promise<Response>;
+}
+
+declare module 'kumoh/middleware' {
+  import type { Context, Env, Next } from 'hono';
+  export function defineMiddleware<E extends Env = Env>(
+    handler: (c: Context<E>, next: Next) => Response | Promise<Response | void>
+  ): (c: Context<E>, next: Next) => Response | Promise<Response | void>;
+}

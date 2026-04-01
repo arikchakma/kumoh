@@ -1,6 +1,6 @@
 import { genImport, genObjectFromRaw, genSafeVariableName } from 'knitwork';
 
-import type { ScannedCron, ScannedQueue } from './types.ts';
+import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from './types.ts';
 
 type CronVar = {
   handler: string;
@@ -14,27 +14,10 @@ type QueueVar = {
   importPath: string;
 };
 
-/**
- * Assembles a module from discrete code sections, separated by blank lines.
- * Falsy values are filtered out so callers can conditionally include blocks.
- *
- * ```ts
- * genModule('import ...', hasQueues && genQueueBlock(), 'export default ...')
- * ```
- */
 function genModule(...sections: Array<string | false | undefined>): string {
   return sections.filter(Boolean).join('\n\n') + '\n';
 }
 
-/**
- * Indents every non-empty line by `depth` levels (2 spaces per level).
- * Empty lines are preserved as-is to keep blank line spacing inside blocks.
- *
- * ```ts
- * indent('const x = 1;\nreturn x;')
- * // '  const x = 1;\n  return x;'
- * ```
- */
 function indent(code: string, depth = 1): string {
   const pad = '  '.repeat(depth);
   return code
@@ -43,16 +26,6 @@ function indent(code: string, depth = 1): string {
     .join('\n');
 }
 
-/**
- * Generates an `async function` declaration with proper indentation.
- *
- * ```ts
- * genAsyncFn('handle', ['req', 'env'], 'return env.DB.get(req.id);')
- * // async function handle(req, env) {
- * //   return env.DB.get(req.id);
- * // }
- * ```
- */
 function genAsyncFn(name: string, params: string[], body: string): string {
   return [
     `async function ${name}(${params.join(', ')}) {`,
@@ -62,19 +35,49 @@ function genAsyncFn(name: string, params: string[], body: string): string {
 }
 
 /**
- * Generates all import statements for the worker entry:
- * - Default import for the Hono app
- * - Named imports for each cron handler + its schedule constant
- * - Default import for each queue consumer handler
+ * Flattens route groups into a sequential list of imports with stable indices.
+ * Returns { middlewareImports, routeImports } with indices matching the codegen output.
  */
+function collectImports(groups: ScannedRouteGroup[]) {
+  const middlewareImports: Array<{ index: number; path: string }> = [];
+  const routeImports: Array<{ index: number; path: string }> = [];
+
+  let mwIdx = 0;
+  let routeIdx = 0;
+
+  for (const group of groups) {
+    if (group.middlewarePath) {
+      middlewareImports.push({ index: mwIdx++, path: group.middlewarePath });
+    }
+    for (const route of group.routes) {
+      routeImports.push({ index: routeIdx++, path: route.importPath });
+    }
+  }
+
+  return { middlewareImports, routeImports };
+}
+
 function genImports(
-  routesEntry: string,
+  serverEntry: string,
+  groups: ScannedRouteGroup[],
   cronVars: CronVar[],
   queueVars: QueueVar[]
 ): string {
   const lines: string[] = [];
+  const hasRoutes = groups.length > 0;
+  const { middlewareImports, routeImports } = collectImports(groups);
 
-  lines.push(genImport(routesEntry, [{ name: 'default', as: 'app' }]));
+  if (hasRoutes) {
+    lines.push("import { Hono } from 'hono';");
+  }
+  lines.push(genImport(serverEntry, [{ name: 'default', as: 'init' }]));
+
+  for (const mw of middlewareImports) {
+    lines.push(`import * as mw_${mw.index} from "${mw.path}";`);
+  }
+  for (const r of routeImports) {
+    lines.push(`import * as route_${r.index} from "${r.path}";`);
+  }
 
   for (const cron of cronVars) {
     lines.push(
@@ -84,7 +87,6 @@ function genImports(
       ])
     );
   }
-
   for (const queue of queueVars) {
     lines.push(
       genImport(queue.importPath, [{ name: 'default', as: queue.handler }])
@@ -94,13 +96,71 @@ function genImports(
   return lines.join('\n');
 }
 
+function genAppInit(): string {
+  return ['const app = new Hono();', 'init(app);'].join('\n');
+}
+
 /**
- * Generates the cron dispatch block. Builds a `cronMap` that maps each
- * schedule string to its handler. Duplicate schedules are caught at scan
- * time so each schedule has exactly one handler — clean retry semantics.
+ * Generates per-directory sub-app blocks (HonoX pattern).
  *
- * Returns `false` when there are no crons so `genModule` filters it out.
+ * Each directory gets its own `new Hono()`, middleware + routes are added,
+ * then it's mounted on the main app with `app.route(mountPath, sub)`.
  */
+function genDirectoryBlocks(groups: ScannedRouteGroup[]): string | false {
+  if (!groups.length) {
+    return false;
+  }
+
+  const blocks: string[] = [];
+  const METHODS =
+    "const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'];";
+  blocks.push(METHODS);
+
+  let mwIdx = 0;
+  let routeIdx = 0;
+
+  for (const group of groups) {
+    const lines: string[] = [];
+    lines.push('{');
+    lines.push('  const sub = new Hono();');
+
+    // Middleware
+    if (group.middlewarePath) {
+      lines.push(
+        `  if (mw_${mwIdx}.default) {`,
+        `    const h = Array.isArray(mw_${mwIdx}.default) ? mw_${mwIdx}.default : [mw_${mwIdx}.default];`,
+        "    sub.use('*', ...h);",
+        '  }'
+      );
+      mwIdx++;
+    }
+
+    // Routes
+    for (const route of group.routes) {
+      const ri = routeIdx++;
+      lines.push(
+        `  if (route_${ri}.default && typeof route_${ri}.default === 'object' && 'fetch' in route_${ri}.default) {`,
+        `    sub.route('${route.subPath}', route_${ri}.default);`,
+        '  } else {',
+        `    for (const m of METHODS) {`,
+        `      const handler = route_${ri}[m];`,
+        `      if (handler) sub.on(m, '${route.subPath}', ...(Array.isArray(handler) ? handler : [handler]));`,
+        '    }',
+        `    if (route_${ri}.default && typeof route_${ri}.default === 'function' && !route_${ri}.GET) {`,
+        `      sub.get('${route.subPath}', route_${ri}.default);`,
+        '    }',
+        '  }'
+      );
+    }
+
+    lines.push(`  app.route('${group.mountPath}', sub);`);
+    lines.push('}');
+    blocks.push(lines.join('\n'));
+  }
+
+  return blocks.join('\n\n');
+}
+
 function genScheduledBlock(cronVars: CronVar[]): string | false {
   if (!cronVars.length) {
     return false;
@@ -124,13 +184,6 @@ function genScheduledBlock(cronVars: CronVar[]): string | false {
   ].join('\n');
 }
 
-/**
- * Generates the queue dispatch block. Builds a `queueMap` keyed by queue
- * name (derived from the filename, e.g. `email.ts` → `"email"`).
- * The `handleQueue` function looks up the handler by `batch.queue`.
- *
- * Returns `false` when there are no queues so `genModule` filters it out.
- */
 function genQueueBlock(queueVars: QueueVar[]): string | false {
   if (!queueVars.length) {
     return false;
@@ -155,10 +208,6 @@ function genQueueBlock(queueVars: QueueVar[]): string | false {
   ].join('\n');
 }
 
-/**
- * Generates the `export default { fetch, scheduled?, queue? }` statement.
- * Only includes `scheduled` and `queue` when their handlers exist.
- */
 function genWorkerExport(cronVars: CronVar[], queueVars: QueueVar[]): string {
   const entries: Record<string, string> = { fetch: 'app.fetch' };
 
@@ -173,17 +222,14 @@ function genWorkerExport(cronVars: CronVar[], queueVars: QueueVar[]): string {
 }
 
 /**
- * Generates a complete Cloudflare Worker entry module that wires together:
+ * Generates a complete Cloudflare Worker entry module.
  *
- * - **HTTP** — Hono app's `fetch` handler
- * - **Crons** — dispatched by `controller.cron` schedule string
- * - **Queues** — dispatched by `batch.queue` name (derived from filename)
- *
- * Filenames are sanitised with `genSafeVariableName` to produce valid
- * identifiers even for files like `my-cron-job.ts` or `123queue.ts`.
+ * Uses the HonoX pattern: creates a fresh Hono app, calls the user's
+ * init function, then builds per-directory sub-apps and mounts them.
  */
 export function generateWorkerEntry(
-  routesEntry: string,
+  serverEntry: string,
+  routeGroups: ScannedRouteGroup[],
   crons: ScannedCron[],
   queues: ScannedQueue[]
 ): string {
@@ -207,7 +253,9 @@ export function generateWorkerEntry(
 
   return genModule(
     '// AUTO-GENERATED BY kumoh — do not edit',
-    genImports(routesEntry, cronVars, queueVars),
+    genImports(serverEntry, routeGroups, cronVars, queueVars),
+    routeGroups.length > 0 && genAppInit(),
+    genDirectoryBlocks(routeGroups),
     genScheduledBlock(cronVars),
     genQueueBlock(queueVars),
     genWorkerExport(cronVars, queueVars)

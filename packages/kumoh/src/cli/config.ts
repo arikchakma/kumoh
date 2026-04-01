@@ -13,6 +13,8 @@ export type DeployState = {
 
 export type KumohJson = {
   name?: string;
+  server?: string;
+  routes?: string;
   schema?: string;
   crons?: string;
   queues?: string;

@@ -1,37 +1,137 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, extname, isAbsolute, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, resolve } from 'node:path';
 
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
-import type { ScannedCron, ScannedQueue } from './types.ts';
+import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from './types.ts';
 
-export function findRoutesEntry(
+export function findServerEntry(
   root: string,
-  routesEntry?: string
+  serverEntry?: string
 ): string | null {
-  if (routesEntry) {
-    const abs = isAbsolute(routesEntry)
-      ? routesEntry
-      : resolve(root, routesEntry);
+  if (serverEntry) {
+    const abs = isAbsolute(serverEntry)
+      ? serverEntry
+      : resolve(root, serverEntry);
     return existsSync(abs) ? abs : null;
   }
 
-  const candidates = [
-    'routes.ts',
-    'routes.js',
-    'routes/index.ts',
-    'routes/index.js',
-  ];
-
+  const candidates = ['app/server.ts', 'app/server.js'];
   for (const candidate of candidates) {
     const abs = resolve(root, candidate);
     if (existsSync(abs)) {
       return abs;
     }
   }
-
   return null;
+}
+
+/**
+ * Converts a filename (without directory prefix) to a Hono sub-path.
+ * This is the path RELATIVE to the directory mount point.
+ *
+ * - `index.ts` → `/`
+ * - `hello.ts` → `/hello`
+ * - `$id.ts` → `/:id`
+ * - `$...slug.ts` → `/:slug{.+}`
+ */
+function fileToSubPath(filename: string): string {
+  let route = filename.replace(/\.(ts|js)$/, '').replace(/^index$/, '');
+
+  route = route.replace(/\$\.\.\.([^/]+)/g, ':$1{.+}');
+  route = route.replace(/\$([^/]+)/g, ':$1');
+
+  return '/' + route;
+}
+
+/**
+ * Groups route files by directory, attaches middleware, and sorts
+ * directories shallow→deep (matching HonoX's `sortDirectoriesByDepth`).
+ *
+ * Each group becomes a Hono sub-app mounted at the directory's path.
+ */
+export function groupRoutesByDirectory(
+  root: string,
+  routesDir: string
+): ScannedRouteGroup[] {
+  const absDir = isAbsolute(routesDir) ? routesDir : resolve(root, routesDir);
+  if (!existsSync(absDir)) {
+    return [];
+  }
+
+  const allFiles = fg.sync('**/*.{ts,js}', { cwd: absDir });
+
+  // Separate middleware from route files
+  const middlewareMap = new Map<string, string>();
+  const routeFiles: Array<{ file: string; dir: string; name: string }> = [];
+
+  for (const file of allFiles) {
+    const name = basename(file);
+    const dir = dirname(file) === '.' ? '' : dirname(file);
+
+    if (name.startsWith('_middleware.')) {
+      middlewareMap.set(dir, resolve(absDir, file));
+    } else if (!name.startsWith('_')) {
+      routeFiles.push({ file, dir, name });
+    }
+  }
+
+  // Group routes by directory
+  const dirMap = new Map<string, ScannedRouteGroup>();
+
+  // Ensure directories with only middleware also get a group
+  for (const [dir, mwPath] of middlewareMap) {
+    if (!dirMap.has(dir)) {
+      const mountPath = dir ? `/${dir}` : '/';
+      dirMap.set(dir, { mountPath, middlewarePath: mwPath, routes: [] });
+    } else {
+      dirMap.get(dir)!.middlewarePath = mwPath;
+    }
+  }
+
+  for (const { file, dir, name } of routeFiles) {
+    if (!dirMap.has(dir)) {
+      const mountPath = dir ? `/${dir}` : '/';
+      dirMap.set(dir, { mountPath, routes: [] });
+    }
+
+    const group = dirMap.get(dir)!;
+    group.routes.push({
+      importPath: resolve(absDir, file),
+      subPath: fileToSubPath(name),
+    });
+  }
+
+  // Sort routes within each directory: static before dynamic
+  for (const group of dirMap.values()) {
+    group.routes.sort((a, b) => {
+      const aIsDynamic = a.subPath.includes(':');
+      const bIsDynamic = b.subPath.includes(':');
+      if (aIsDynamic && !bIsDynamic) {
+        return 1;
+      }
+      if (!aIsDynamic && bIsDynamic) {
+        return -1;
+      }
+      return a.subPath.localeCompare(b.subPath);
+    });
+  }
+
+  // Sort directories shallow→deep (HonoX: sortDirectoriesByDepth)
+  const sorted = [...dirMap.entries()].sort(([a], [b]) => {
+    const depthA = a ? a.split('/').length : 0;
+    const depthB = b ? b.split('/').length : 0;
+    return depthA - depthB || a.localeCompare(b);
+  });
+
+  // Apply $param conversion to mount paths
+  return sorted.map(([_, group]) => ({
+    ...group,
+    mountPath: group.mountPath
+      .replace(/\$\.\.\.([^/]+)/g, ':$1{.+}')
+      .replace(/\$([^/]+)/g, ':$1'),
+  }));
 }
 
 /**

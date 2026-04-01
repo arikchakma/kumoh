@@ -8,10 +8,15 @@
       "type": "string",
       "description": "The application name. Used for the worker name and resource naming (e.g. D1 database, KV namespace, R2 bucket, queue)."
     },
+    "server": {
+      "type": "string",
+      "description": "Path to the base Hono app file for middleware and global configuration.",
+      "default": "app/server.ts"
+    },
     "routes": {
       "type": "string",
-      "description": "Path to the Hono app entry file.",
-      "default": "app/routes/index.ts"
+      "description": "Directory containing route files. Each file becomes an API endpoint based on its path.",
+      "default": "app/routes"
     },
     "crons": {
       "type": "string",

@@ -11,9 +11,17 @@ import {
   VIRTUAL_QUEUE,
   VIRTUAL_AI,
   VIRTUAL_EMAIL,
+  VIRTUAL_APP,
+  VIRTUAL_ROUTE,
+  VIRTUAL_MIDDLEWARE,
   VIRTUAL_ENTRY,
 } from './constants.ts';
-import { findRoutesEntry, scanCrons, scanQueues } from './scanner.ts';
+import {
+  findServerEntry,
+  groupRoutesByDirectory,
+  scanCrons,
+  scanQueues,
+} from './scanner.ts';
 import type { KumohConfig } from './types.ts';
 import { generateAiModule } from './virtual/ai.ts';
 import { generateDbModule } from './virtual/db.ts';
@@ -37,6 +45,16 @@ function createGenerators(
       generateQueueModule(scanQueues(root, config.queuesDir!, appName)),
     [VIRTUAL_AI]: generateAiModule,
     [VIRTUAL_EMAIL]: generateEmailModule,
+    [VIRTUAL_APP]: () =>
+      [
+        'export function defineApp(init) { return init; }',
+        'export function defineRoute(handler) { return handler; }',
+        'export function defineMiddleware(handler) { return handler; }',
+      ].join('\n'),
+    [VIRTUAL_ROUTE]: () =>
+      'export function defineRoute(handler) { return handler; }',
+    [VIRTUAL_MIDDLEWARE]: () =>
+      'export function defineMiddleware(handler) { return handler; }',
   };
 }
 
@@ -87,6 +105,55 @@ function generateTypes(config: KumohConfig, root: string): void {
     );
   }
 
+  // Generate KumohEnv with all bindings for defineRoute/defineMiddleware
+  const bindings: string[] = [];
+  if (config.schemaPath) {
+    bindings.push('    DB: D1Database;');
+  }
+  bindings.push('    KV: KVNamespace;');
+  bindings.push('    BUCKET: R2Bucket;');
+  bindings.push('    AI: Ai;');
+  bindings.push('    EMAIL: SendEmail;');
+  for (const q of queues) {
+    bindings.push(
+      `    ${q.binding}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
+    );
+  }
+
+  sections.push(
+    "import type { Context, Hono, Next } from 'hono';",
+    '',
+    'type KumohBindings = {',
+    ...bindings,
+    '};',
+    '',
+    'type KumohEnv = { Bindings: KumohBindings };',
+    '',
+    "declare module 'kumoh/app' {",
+    '  export function defineApp(',
+    '    init: (app: Hono<KumohEnv>) => void',
+    '  ): (app: Hono<KumohEnv>) => void;',
+    '  export function defineRoute(',
+    '    handler: (c: Context<KumohEnv>) => Response | Promise<Response>',
+    '  ): (c: Context<KumohEnv>) => Response | Promise<Response>;',
+    '  export function defineMiddleware(',
+    '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
+    '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
+    '}',
+    '',
+    "declare module 'kumoh/route' {",
+    '  export function defineRoute(',
+    '    handler: (c: Context<KumohEnv>) => Response | Promise<Response>',
+    '  ): (c: Context<KumohEnv>) => Response | Promise<Response>;',
+    '}',
+    '',
+    "declare module 'kumoh/middleware' {",
+    '  export function defineMiddleware(',
+    '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
+    '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
+    '}'
+  );
+
   writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
 }
 
@@ -105,7 +172,7 @@ export function virtualModules(config: KumohConfig): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
-      const dirs = [config.cronsDir, config.queuesDir].filter(
+      const dirs = [config.routesDir, config.cronsDir, config.queuesDir].filter(
         Boolean
       ) as string[];
 
@@ -165,19 +232,20 @@ export function virtualModules(config: KumohConfig): Plugin {
       }
 
       if (moduleId === VIRTUAL_ENTRY) {
-        const routesEntry = findRoutesEntry(root, config.routesEntry);
-        if (!routesEntry) {
+        const serverEntry = findServerEntry(root, config.serverEntry);
+        if (!serverEntry) {
           throw new Error(
-            '[kumoh] No routes entry found. Create app/routes/index.ts'
+            '[kumoh] No server entry found. Create app/server.ts'
           );
         }
+        const routeGroups = groupRoutesByDirectory(root, config.routesDir!);
         const crons = scanCrons(root, config.cronsDir!);
         const queues = scanQueues(
           root,
           config.queuesDir!,
           config.appName ?? 'kumoh-app'
         );
-        return generateWorkerEntry(routesEntry, crons, queues);
+        return generateWorkerEntry(serverEntry, routeGroups, crons, queues);
       }
 
       return null;

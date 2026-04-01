@@ -33,7 +33,6 @@ const templates = {
       {
         $schema: './node_modules/kumoh/kumoh.schema.json',
         name,
-        routes: 'app/routes/index.ts',
         crons: 'app/crons',
         queues: 'app/queues',
         schema: 'app/db/schema.ts',
@@ -55,13 +54,16 @@ export default defineConfig({
 }
 `,
 
-  routes: `import { Hono } from 'hono';
-import { db, schema } from 'kumoh/db';
+  server: `import { defineApp } from 'kumoh/app';
 
-const app = new Hono()
-  .get('/', (c) => c.json({ status: 'ok' }));
+export default defineApp((app) => {
+  // Add global middleware here
+});
+`,
 
-export default app;
+  routeIndex: `export const GET = (c) => {
+  return c.json({ status: 'ok' });
+};
 `,
 
   schema: `import { sqliteTable, text, integer } from 'kumoh/db';
@@ -142,7 +144,10 @@ export const init = defineCommand({
     await writeFile(resolve(root, 'tsconfig.json'), templates.tsconfig);
     log.ok('tsconfig.json');
 
-    await writeFile(resolve(root, 'app/routes/index.ts'), templates.routes);
+    await writeFile(resolve(root, 'app/server.ts'), templates.server);
+    log.ok('app/server.ts');
+
+    await writeFile(resolve(root, 'app/routes/index.ts'), templates.routeIndex);
     log.ok('app/routes/index.ts');
 
     await writeFile(resolve(root, 'app/db/schema.ts'), templates.schema);
