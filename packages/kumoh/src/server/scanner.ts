@@ -50,7 +50,10 @@ export function groupRoutesByDirectory(
     return [];
   }
 
-  const allFiles = fg.sync('**/*.{ts,js}', { cwd: absDir });
+  const allFiles = fg.sync('**/*.{ts,js}', {
+    cwd: absDir,
+    ignore: ['**/*.d.ts'],
+  });
 
   // Separate middleware from route files
   const middlewareMap = new Map<string, string>();
@@ -171,7 +174,7 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   if (!existsSync(absDir)) {
     return [];
   }
-  const files = fg.sync('**/*.{ts,js}', { cwd: absDir });
+  const files = fg.sync('**/*.{ts,js}', { cwd: absDir, ignore: ['**/*.d.ts'] });
 
   const crons = files
     .filter((f) => !basename(f).startsWith('_'))
@@ -224,7 +227,7 @@ export function scanQueues(
   if (!existsSync(absDir)) {
     return [];
   }
-  const files = fg.sync('**/*.{ts,js}', { cwd: absDir });
+  const files = fg.sync('**/*.{ts,js}', { cwd: absDir, ignore: ['**/*.d.ts'] });
 
   return files
     .filter((f) => !basename(f).startsWith('_'))

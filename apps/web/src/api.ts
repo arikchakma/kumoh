@@ -1,5 +1,3 @@
-import { hc } from 'hono/client';
+import { hcWithType } from '@kumoh/client';
 
-import type { AppType } from '../../api/.kumoh/rpc';
-
-export const client = hc<AppType>('http://localhost:5173');
+export const client = hcWithType('http://localhost:5173');

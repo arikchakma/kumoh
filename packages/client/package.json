@@ -1,0 +1,16 @@
+{
+  "name": "@kumoh/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "api": "workspace:*",
+    "hono": "^4.12.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250312.0"
+  }
+}

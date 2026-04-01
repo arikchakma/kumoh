@@ -2,6 +2,9 @@
   "name": "api",
   "private": true,
   "type": "module",
+  "exports": {
+    "./rpc": "./.kumoh/rpc.ts"
+  },
   "scripts": {
     "build": "vp build",
     "check": "vp check",
