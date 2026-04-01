@@ -1,7 +1,7 @@
 import type { Env, MiddlewareHandler } from 'hono';
 import { Hono } from 'hono';
 
-import { fileToSubPath } from './utils/file.ts';
+import { fileToSubPath } from '../lib/file.ts';
 
 const METHODS = [
   'GET',

@@ -4,14 +4,14 @@ import { basename, dirname, extname, isAbsolute, resolve } from 'node:path';
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
-import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
 import {
   dirToMountPath,
   fileToSubPath,
   findInheritedMiddleware,
   sortByDepth,
   sortSubPaths,
-} from './utils/file.ts';
+} from '../lib/file.ts';
+import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
 
 export function findServerEntry(
   root: string,
