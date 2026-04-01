@@ -93,6 +93,30 @@ export const users = sqliteTable('users', {
 });
 `,
 
+  heartbeat: `import { defineScheduled } from 'kumoh/cron';
+
+export const cron = '0 */6 * * *';
+
+export default defineScheduled(async (controller) => {
+  console.log(\`Heartbeat: \${controller.cron} at \${new Date(controller.scheduledTime).toISOString()}\`);
+});
+`,
+
+  messages: `import { defineQueue } from 'kumoh/queue';
+
+interface Message {
+  type: string;
+  payload: string;
+}
+
+export default defineQueue<Message>(async (batch) => {
+  for (const msg of batch.messages) {
+    console.log(\`Processing: \${msg.body.type} - \${msg.body.payload}\`);
+    msg.ack();
+  }
+});
+`,
+
   gitignore: `node_modules
 dist
 .kumoh
@@ -103,26 +127,35 @@ dist
     JSON.stringify(
       {
         name,
+        version,
         private: true,
         type: 'module',
         scripts: {
-          dev: 'vp dev',
           build: 'vp build',
+          check: 'vp check',
           'db:generate': 'kumoh db generate',
           'db:migrate': 'kumoh db migrate',
           'db:studio': 'kumoh db studio',
-          deploy: 'kumoh deploy',
+          dev: 'vp dev',
         },
         dependencies: {
-          kumoh: `^${version}`,
-          hono: '^4.7.0',
           'drizzle-orm': '^0.38.0',
+          hono: '^4.7.0',
+          kumoh: 'workspace:*',
         },
         devDependencies: {
           '@cloudflare/workers-types': '^4.20250312.0',
           'drizzle-kit': '^0.30.0',
-          typescript: '^5.7.0',
-          'vite-plus': '^0.1.14',
+          typescript: '~5.9.3',
+          vite: 'npm:@voidzero-dev/vite-plus-core@latest',
+          'vite-plus': 'latest',
+        },
+        packageManager: 'pnpm@10.33.0',
+        pnpm: {
+          overrides: {
+            vite: 'npm:@voidzero-dev/vite-plus-core@latest',
+            vitest: 'npm:@voidzero-dev/vite-plus-test@latest',
+          },
         },
       },
       null,
@@ -186,6 +219,15 @@ export const init = defineCommand({
 
     await writeFile(resolve(dir, 'app/db/schema.ts'), templates.schema);
     log.ok('app/db/schema.ts');
+
+    await writeFile(
+      resolve(dir, 'app/crons/heartbeat.ts'),
+      templates.heartbeat
+    );
+    log.ok('app/crons/heartbeat.ts');
+
+    await writeFile(resolve(dir, 'app/queues/messages.ts'), templates.messages);
+    log.ok('app/queues/messages.ts');
 
     if (!(await exists(resolve(dir, 'package.json')))) {
       await writeFile(
