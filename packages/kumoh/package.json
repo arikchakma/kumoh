@@ -1,9 +1,9 @@
 {
   "name": "kumoh",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Opinionated framework for building Cloudflare Workers",
   "bin": {
-    "kumoh": "./dist/cli.mjs"
+    "kumoh": "dist/cli.mjs"
   },
   "files": [
     "dist",
@@ -56,7 +56,10 @@
   "scripts": {
     "build": "vp pack",
     "check": "vp check",
-    "dev": "vp pack --watch"
+    "dev": "vp pack --watch",
+    "prepare": "vp config",
+    "prepublishOnly": "vp run build",
+    "release": "bumpp"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.30.3",
@@ -65,12 +68,13 @@
     "fast-glob": "^3.3.3",
     "knitwork": "^1.3.0",
     "oxc-parser": "^0.123.0",
-    "wrangler": "catalog:"
+    "wrangler": "^4.79.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260401.1",
     "@types/node": "^25.5.0",
     "@typescript/native-preview": "7.0.0-dev.20260328.1",
+    "bumpp": "^11.0.1",
     "hono": "^4.12.9",
     "typescript": "^6.0.2",
     "vite": "catalog:",
