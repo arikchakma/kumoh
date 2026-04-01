@@ -11,5 +11,6 @@ export const GET = defineHandler(async (c) => {
   if (!result.length) {
     return c.json({ error: `User not found: ${id}` }, 404);
   }
+
   return c.json(result[0]);
 });
