@@ -4,3 +4,5 @@ dist
 .kumoh
 .wrangler
 *.tsbuildinfo
+
+.tmp
