@@ -1,7 +1,7 @@
-import { defineRoute } from 'kumoh/app';
+import { defineHandler } from 'kumoh/app';
 import { db, schema } from 'kumoh/db';
 
-export const GET = defineRoute(async (c) => {
+export const GET = defineHandler(async (c) => {
   await db.insert(schema.visits).values({ path: '/api/hello' });
 
   const count = await db.$count(schema.visits);

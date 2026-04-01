@@ -6,7 +6,7 @@ export function defineApp<E extends Env = Env>(
   return init;
 }
 
-export function defineRoute<E extends Env = Env>(
+export function defineHandler<E extends Env = Env>(
   handler: (c: Context<E>) => Response | Promise<Response>
 ): (c: Context<E>) => Response | Promise<Response> {
   return handler;

@@ -11,8 +11,6 @@ import {
   VIRTUAL_AI,
   VIRTUAL_EMAIL,
   VIRTUAL_APP,
-  VIRTUAL_ROUTE,
-  VIRTUAL_MIDDLEWARE,
   VIRTUAL_ENTRY,
 } from '../constants.ts';
 import type { KumohConfig } from '../types.ts';
@@ -48,13 +46,9 @@ function createGenerators(
     [VIRTUAL_APP]: () =>
       [
         'export function defineApp(init) { return init; }',
-        'export function defineRoute(handler) { return handler; }',
+        'export function defineHandler(handler) { return handler; }',
         'export function defineMiddleware(handler) { return handler; }',
       ].join('\n'),
-    [VIRTUAL_ROUTE]: () =>
-      'export function defineRoute(handler) { return handler; }',
-    [VIRTUAL_MIDDLEWARE]: () =>
-      'export function defineMiddleware(handler) { return handler; }',
   };
 }
 
@@ -105,7 +99,7 @@ function generateTypes(config: KumohConfig, root: string): void {
     );
   }
 
-  // Generate KumohEnv with all bindings for defineRoute/defineMiddleware
+  // Generate KumohEnv with all bindings for defineHandler/defineMiddleware
   const bindings: string[] = [];
   if (config.schemaPath) {
     bindings.push('    DB: D1Database;');
@@ -133,21 +127,9 @@ function generateTypes(config: KumohConfig, root: string): void {
     '  export function defineApp(',
     '    init: (app: Hono<KumohEnv>) => void',
     '  ): (app: Hono<KumohEnv>) => void;',
-    '  export function defineRoute(',
+    '  export function defineHandler(',
     '    handler: (c: Context<KumohEnv>) => Response | Promise<Response>',
     '  ): (c: Context<KumohEnv>) => Response | Promise<Response>;',
-    '  export function defineMiddleware(',
-    '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
-    '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
-    '}',
-    '',
-    "declare module 'kumoh/route' {",
-    '  export function defineRoute(',
-    '    handler: (c: Context<KumohEnv>) => Response | Promise<Response>',
-    '  ): (c: Context<KumohEnv>) => Response | Promise<Response>;',
-    '}',
-    '',
-    "declare module 'kumoh/middleware' {",
     '  export function defineMiddleware(',
     '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
     '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',

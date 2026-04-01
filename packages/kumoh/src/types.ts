@@ -15,6 +15,8 @@ export type KumohConfig = {
 
 export type ScannedRouteFile = {
   importPath: string;
+  /** Relative path from routes dir, e.g. "api/hello.ts" — used as key in defineWorker() */
+  relativePath: string;
   /** Relative path within this directory for sub.on(), e.g. "/hello" or "/:id" or "/" */
   subPath: string;
 };

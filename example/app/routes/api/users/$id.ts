@@ -1,7 +1,7 @@
-import { defineRoute } from 'kumoh/app';
+import { defineHandler } from 'kumoh/app';
 import { db, eq, schema } from 'kumoh/db';
 
-export const GET = defineRoute(async (c) => {
+export const GET = defineHandler(async (c) => {
   const { id } = c.req.param();
   const result = await db
     .select()

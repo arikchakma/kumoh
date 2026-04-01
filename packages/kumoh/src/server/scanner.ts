@@ -111,6 +111,7 @@ export function groupRoutesByDirectory(
     const group = dirMap.get(dir)!;
     group.routes.push({
       importPath: resolve(absDir, file),
+      relativePath: file,
       subPath: fileToSubPath(name),
     });
   }
