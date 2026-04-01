@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
@@ -115,7 +116,7 @@ async function applyMigrations(
   config: KumohJson,
   state: DeployState
 ): Promise<void> {
-  const dir = migrationsDir(config);
+  const dir = migrationsDir();
   const journalPath = join(dir, 'meta', '_journal.json');
 
   try {
@@ -179,18 +180,18 @@ export const deploy = defineCommand({
     await build();
 
     log.step('Provisioning resources...');
-    if (config.schema) {
+    if (existsSync('app/db/schema.ts')) {
       await provisionD1(`${appName}-db`, state);
     }
     await provisionKV(appName, state);
     await provisionR2(`${appName}-bucket`);
-    if (config.queues) {
+    if (existsSync('app/queues')) {
       await provisionQueue(`${appName}-queue`);
     }
 
     await patchWranglerConfig(state);
 
-    if (config.schema) {
+    if (existsSync('app/db/schema.ts')) {
       log.step('Applying migrations...');
       await applyMigrations(config, state);
     }

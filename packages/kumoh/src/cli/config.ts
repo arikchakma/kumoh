@@ -13,11 +13,6 @@ export type DeployState = {
 
 export type KumohJson = {
   name?: string;
-  server?: string;
-  routes?: string;
-  schema?: string;
-  crons?: string;
-  queues?: string;
   deploy?: DeployState;
 };
 
@@ -39,11 +34,10 @@ export async function saveConfig(config: KumohJson): Promise<void> {
   await writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
 }
 
-export function schemaPath(config: KumohJson): string {
-  return resolve(root, config.schema ?? 'app/db/schema.ts');
+export function schemaPath(): string {
+  return resolve(root, 'app/db/schema.ts');
 }
 
-export function migrationsDir(config: KumohJson): string {
-  const schema = config.schema ?? 'app/db/schema.ts';
-  return join(resolve(root, schema, '..'), 'migrations');
+export function migrationsDir(): string {
+  return join(resolve(root, 'app/db'), 'migrations');
 }

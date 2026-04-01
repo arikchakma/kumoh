@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -42,14 +43,14 @@ export const status = defineCommand({
 
     row('R2', `${appName}-bucket`);
 
-    if (config.queues) {
+    if (existsSync('app/queues')) {
       row('Queue', `${appName}-queue`);
     }
 
     // Cron schedules
-    if (config.crons) {
+    if (existsSync('app/crons')) {
       try {
-        const crons = scanCrons('.', config.crons);
+        const crons = scanCrons('.', 'app/crons');
         if (crons.length) {
           const cronList = crons
             .map((c) => `${c.schedule} (${c.name})`)
@@ -62,8 +63,8 @@ export const status = defineCommand({
     }
 
     // Migration status
-    if (config.schema) {
-      const dir = migrationsDir(config);
+    if (existsSync('app/db/schema.ts')) {
+      const dir = migrationsDir();
       const journalPath = join(dir, 'meta', '_journal.json');
       try {
         await access(journalPath);

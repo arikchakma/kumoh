@@ -33,9 +33,6 @@ const templates = {
       {
         $schema: './node_modules/kumoh/kumoh.schema.json',
         name,
-        crons: 'app/crons',
-        queues: 'app/queues',
-        schema: 'app/db/schema.ts',
       },
       null,
       2

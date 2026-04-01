@@ -37,12 +37,12 @@ const generate = defineCommand({
     description: 'Generate SQL migration files from your schema',
   },
   async run() {
-    const config = await loadConfig();
-    await mkdir(migrationsDir(config), { recursive: true });
-    const tempConfig = await writeTempConfig(config);
+    await loadConfig();
+    await mkdir(migrationsDir(), { recursive: true });
+    const tempConfig = await writeTempConfig();
     await runDrizzleKit(`generate --config=${tempConfig}`);
     await cleanupTempConfig();
-    await generateSchemaTypes(schemaPath(config));
+    await generateSchemaTypes(schemaPath());
   },
 });
 
@@ -52,9 +52,9 @@ const migrate = defineCommand({
     description: 'Push schema changes to local D1 database',
   },
   async run() {
-    const config = await loadConfig();
+    await loadConfig();
     const dbPath = await requireLocalDb();
-    const tempConfig = await writeTempConfig(config, {
+    const tempConfig = await writeTempConfig({
       dbCredentials: { url: dbPath },
     });
     await runDrizzleKit(`push --config=${tempConfig}`);
@@ -68,9 +68,9 @@ const studio = defineCommand({
     description: 'Open Drizzle Studio to browse your local database',
   },
   async run() {
-    const config = await loadConfig();
+    await loadConfig();
     const dbPath = await requireLocalDb();
-    const tempConfig = await writeTempConfig(config, {
+    const tempConfig = await writeTempConfig({
       dbCredentials: { url: dbPath },
     });
     await runDrizzleKit(`studio --config=${tempConfig}`);

@@ -1,21 +1,15 @@
 export type KumohConfig = {
-  /** App name from kumoh.json. Used for resource naming. */
-  appName?: string;
-  /** Path to the base Hono app file. Default: "app/server.ts" */
-  serverEntry?: string;
-  /** Directory containing route files. Default: "app/routes" */
-  routesDir?: string;
-  /** Directory containing cron handlers. Default: "app/crons" */
-  cronsDir?: string;
-  /** Directory containing queue handlers. Default: "app/queues" */
-  queuesDir?: string;
-  /** Path to DB schema file. Default: "app/db/schema.ts" */
-  schemaPath?: string;
+  appName: string;
+  serverEntry: string;
+  routesDir: string;
+  cronsDir: string;
+  queuesDir: string;
+  schemaPath: string;
 };
 
 export type ScannedRouteFile = {
   importPath: string;
-  /** Relative path from routes dir, e.g. "api/hello.ts" — used as key in defineWorker() */
+  /** Relative path from routes dir, e.g. "api/hello.ts" */
   relativePath: string;
   /** Relative path within this directory for sub.on(), e.g. "/hello" or "/:id" or "/" */
   subPath: string;
@@ -39,13 +33,9 @@ export type ScannedCron = {
 
 export type ScannedQueue = {
   filePath: string;
-  /** Raw filename without extension, e.g. "email-sending" */
   name: string;
-  /** camelCase for JS export, e.g. "emailSending" */
   camelName: string;
-  /** UPPER_SNAKE for env binding, e.g. "QUEUE_EMAIL_SENDING" */
   binding: string;
-  /** Full queue name for Cloudflare, e.g. "my-app-email-sending" */
   queueName: string;
   importPath: string;
 };

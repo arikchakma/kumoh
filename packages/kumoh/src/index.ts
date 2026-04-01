@@ -14,11 +14,12 @@ export { defineQueue } from './factory/queue.ts';
 
 type KumohJson = {
   name?: string;
-  server?: string;
-  routes?: string;
-  crons?: string;
-  queues?: string;
-  schema?: string;
+  deploy?: {
+    d1?: string;
+    kv?: string;
+    url?: string;
+    migrations?: string[];
+  };
 };
 
 const bindings = {
@@ -38,16 +39,19 @@ function readConfig(root: string): KumohJson {
 function resolveConfig(raw: KumohJson, root: string): KumohConfig {
   return {
     appName: raw.name ?? 'kumoh-app',
-    serverEntry: resolve(root, raw.server ?? 'app/server.ts'),
-    routesDir: resolve(root, raw.routes ?? 'app/routes'),
-    cronsDir: resolve(root, raw.crons ?? 'app/crons'),
-    queuesDir: resolve(root, raw.queues ?? 'app/queues'),
-    schemaPath: resolve(root, raw.schema ?? 'app/db/schema.ts'),
+    serverEntry: resolve(root, 'app/server.ts'),
+    routesDir: resolve(root, 'app/routes'),
+    cronsDir: resolve(root, 'app/crons'),
+    queuesDir: resolve(root, 'app/queues'),
+    schemaPath: resolve(root, 'app/db/schema.ts'),
   };
 }
 
 function createWorkerConfig(raw: KumohJson, root: string) {
   const name = raw.name ?? 'kumoh-app';
+  const schemaExists = existsSync(resolve(root, 'app/db/schema.ts'));
+  const cronsDir = resolve(root, 'app/crons');
+  const queuesDir = resolve(root, 'app/queues');
 
   const workerConfig: Record<string, unknown> = {
     name,
@@ -56,7 +60,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     compatibility_flags: ['nodejs_compat'],
   };
 
-  if (raw.schema) {
+  if (schemaExists) {
     workerConfig.d1_databases = [
       {
         binding: bindings.d1,
@@ -66,26 +70,14 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     ];
   }
 
-  workerConfig.kv_namespaces = [
-    {
-      binding: bindings.kv,
-      id: 'local',
-    },
-  ];
-
+  workerConfig.kv_namespaces = [{ binding: bindings.kv, id: 'local' }];
   workerConfig.r2_buckets = [
-    {
-      binding: bindings.r2,
-      bucket_name: `${name}-bucket`,
-    },
+    { binding: bindings.r2, bucket_name: `${name}-bucket` },
   ];
-
   workerConfig.ai = { binding: 'AI' };
-
   workerConfig.send_email = [{ name: 'EMAIL' }];
 
-  if (raw.queues) {
-    const queuesDir = resolve(root, raw.queues);
+  if (existsSync(queuesDir)) {
     const queues = scanQueues(root, queuesDir, name);
     if (queues.length) {
       workerConfig.queues = {
@@ -93,35 +85,27 @@ function createWorkerConfig(raw: KumohJson, root: string) {
           binding: q.binding,
           queue: q.queueName,
         })),
-        consumers: queues.map((q) => ({
-          queue: q.queueName,
-        })),
+        consumers: queues.map((q) => ({ queue: q.queueName })),
       };
     }
   }
 
-  if (raw.crons) {
-    const cronsDir = resolve(root, raw.crons);
+  if (existsSync(cronsDir)) {
     const crons = scanCrons(root, cronsDir);
     if (crons.length) {
-      workerConfig.triggers = {
-        crons: crons.map((c) => c.schedule),
-      };
+      workerConfig.triggers = { crons: crons.map((c) => c.schedule) };
     }
   }
 
   return workerConfig;
 }
 
-export function kumoh(userConfig?: KumohConfig): Plugin[] {
+export function kumoh(): Plugin[] {
   const root = process.cwd();
   const raw = readConfig(root);
-  const config: KumohConfig = {
-    ...resolveConfig(raw, root),
-    ...userConfig,
-  };
+  const config = resolveConfig(raw, root);
   const workerConfig = createWorkerConfig(raw, root);
-  const envName = (raw.name ?? 'kumoh-app').replace(/-/g, '_');
+  const envName = config.appName.replace(/-/g, '_');
 
   return [
     virtualModules(config),

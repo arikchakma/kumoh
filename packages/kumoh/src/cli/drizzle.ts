@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process';
 import { access, mkdir, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import type { KumohJson } from './config.ts';
 import { migrationsDir, root, schemaPath } from './config.ts';
 
 export async function localDbPath(): Promise<string | null> {
@@ -37,7 +36,6 @@ export async function requireLocalDb(): Promise<string> {
 }
 
 export async function writeTempConfig(
-  config: KumohJson,
   extra: Record<string, unknown> = {}
 ): Promise<string> {
   await mkdir(resolve(root, '.kumoh'), { recursive: true });
@@ -47,8 +45,8 @@ export async function writeTempConfig(
     JSON.stringify(
       {
         dialect: 'sqlite',
-        schema: schemaPath(config),
-        out: migrationsDir(config),
+        schema: schemaPath(),
+        out: migrationsDir(),
         ...extra,
       },
       null,

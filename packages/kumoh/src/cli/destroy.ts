@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 import { defineCommand } from 'citty';
@@ -56,7 +57,7 @@ export const destroy = defineCommand({
       console.log(`  KV:      ${appName} (${deploy.kv.slice(0, 8)}…)`);
     }
     console.log(`  R2:      ${appName}-bucket`);
-    if (config.queues) {
+    if (existsSync('app/queues')) {
       console.log(`  Queue:   ${appName}-queue`);
     }
 
@@ -72,7 +73,7 @@ export const destroy = defineCommand({
       wrangler(`delete --name ${appName} --force`)
     );
 
-    if (config.queues) {
+    if (existsSync('app/queues')) {
       await tryDelete(`Queue "${appName}-queue"`, () =>
         wrangler(`queues delete ${appName}-queue`)
       );
