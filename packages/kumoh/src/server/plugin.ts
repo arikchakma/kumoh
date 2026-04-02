@@ -193,7 +193,7 @@ function generateTypes(config: KumohConfig, root: string): void {
     if (schemaRef) {
       rpcLines.push(
         `import type * as _kumohSchema from '${schemaRef}';`,
-        '// @ts-expect-error -- redeclares schema for cross-project type resolution',
+        '// @ts-ignore -- redeclares schema for cross-project type resolution',
         "declare module 'kumoh/db' { export const schema: typeof _kumohSchema; }"
       );
     }

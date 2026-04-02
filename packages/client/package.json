@@ -4,13 +4,22 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "vp check",
+    "dev": "tsc --watch"
   },
   "dependencies": {
     "@acme/api": "workspace:*",
     "hono": "^4.12.9"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260401.1"
+    "@cloudflare/workers-types": "^4.20260401.1",
+    "typescript": "~6.0.2"
   }
 }
