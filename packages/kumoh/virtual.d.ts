@@ -72,14 +72,11 @@ declare module 'kumoh/email' {
 
 declare module 'kumoh/app' {
   import type { Context, Env, Hono, Next } from 'hono';
+  import type { CreateHandlersInterface } from 'hono/factory';
   export function defineApp<E extends Env = Env>(
     init: (app: Hono<E>) => void
   ): (app: Hono<E>) => void;
-  export function defineHandler<
-    P extends string = any,
-    E extends Env = Env,
-    R = any,
-  >(handler: (c: Context<E, P>) => R): (c: Context<E, P>) => R;
+  export const defineHandler: CreateHandlersInterface<Env, any>;
   export function defineMiddleware<E extends Env = Env>(
     handler: (c: Context<E>, next: Next) => Response | Promise<Response | void>
   ): (c: Context<E>, next: Next) => Response | Promise<Response | void>;
