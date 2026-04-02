@@ -21,6 +21,7 @@
     "sugar-high": "^1.0.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260401.1",
     "@react-router/dev": "7.13.2",
     "@react-router/fs-routes": "7.13.2",
     "@tailwindcss/vite": "^4.2.2",

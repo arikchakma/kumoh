@@ -92,6 +92,9 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20260401.1
+        version: 4.20260401.1
       '@react-router/dev':
         specifier: 7.13.2
         version: 7.13.2(@react-router/serve@7.13.2(react-router@7.13.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(typescript@5.9.3))(@types/node@22.19.15)(@voidzero-dev/vite-plus-core@0.1.15(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3))(esbuild@0.27.4)(jiti@2.6.1)(react-router@7.13.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(tsx@4.21.0)(typescript@5.9.3)(wrangler@4.79.0(@cloudflare/workers-types@4.20260401.1))(yaml@2.8.3)

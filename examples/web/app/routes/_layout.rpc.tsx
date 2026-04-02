@@ -25,6 +25,12 @@ type EndpointResult = {
   loading: boolean;
 };
 
+const endpointCallers = [
+  () => apiClient.api.hello.$get(),
+  () => apiClient.api.users.$get(),
+  () => apiClient.api.users[':id'].$get({ param: { id: '1' } }),
+];
+
 export default function RPC() {
   const [endpoints, setEndpoints] = useState<EndpointResult[]>([
     { name: 'GET /api/hello', status: null, data: null, loading: false },
@@ -38,24 +44,7 @@ export default function RPC() {
     );
 
     try {
-      let res: Response;
-
-      switch (index) {
-        case 0:
-          res = await apiClient.api.hello.$get();
-          break;
-        case 1:
-          res = await apiClient.api.users.$get();
-          break;
-        case 2:
-          res = await apiClient.api.users[':id'].$get({
-            param: { id: '1' },
-          });
-          break;
-        default:
-          return;
-      }
-
+      const res = await endpointCallers[index]();
       const data = await res.json();
 
       setEndpoints((prev) =>
