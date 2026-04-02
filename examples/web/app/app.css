@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'DepartureMono';
+  src: url('/fonts/DepartureMono-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GeistPixel';
+  src: url('/fonts/GeistPixel-Square.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GeistPixel Line';
+  src: url('/fonts/GeistPixel-Line.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-ink);
+}
+
+@theme {
+  --color-bg: #fff;
+  --color-bg-elevated: #f3f5f8;
+  --color-text: #1a222b;
+  --color-text-dim: #69737d;
+  --color-ink: #f13f34;
+  --color-ink-dim: #fae8e5;
+  --color-border: #ede3e3;
+
+  --font-mono: 'DepartureMono', ui-monospace, monospace;
+  --font-pixel: 'GeistPixel', ui-monospace, monospace;
+  --font-pixel-line: 'GeistPixel Line', ui-monospace, monospace;
+}
+
+::selection {
+  background: var(--color-ink-dim);
+  color: var(--color-ink);
+}
