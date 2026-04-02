@@ -86,3 +86,37 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp test` to validate changes.
 <!--VITE PLUS END-->
+
+## Code Comments
+
+Comments explain the _why_, not the _what_. If the code is clear, don't comment it.
+
+- Don't restate what the code already says. `// Loop through users` above a for loop adds nothing.
+- Do comment non-obvious behavior: API gotchas, ordering that matters, design decisions, things that look wrong but are intentional.
+- Inline comments next to the code they explain, not walls of text above functions.
+- JSDoc on functions: one or two sentences about what it does and why. Add `@example` blocks for complicated functions where usage isn't obvious.
+- Tone: direct and conversational. Write like you're explaining to a coworker. "We do X because Y" is fine.
+
+Bad:
+
+```ts
+// Create a new array to store the results
+const results = [];
+// Loop through each item in the list
+for (const item of list) {
+  // Push the processed item to results
+  results.push(process(item));
+}
+```
+
+Good:
+
+```ts
+// Static before dynamic -- hello.ts registers before $id.ts
+const sorted = entries.sort(([a], [b]) => { ... });
+```
+
+```ts
+// Mark as applied so children don't re-inherit it
+appliedMiddlewarePaths.add(key);
+```
