@@ -1,12 +1,7 @@
 export function generateKvModule(): string {
-  return `
+  return /* js */ `
 import { env } from "cloudflare:workers";
 
-export const kv = new Proxy({}, {
-  get(_, prop) {
-    const value = Reflect.get(env.KV, prop);
-    return typeof value === 'function' ? value.bind(env.KV) : value;
-  }
-});
+export const kv = env.KV;
 `;
 }
