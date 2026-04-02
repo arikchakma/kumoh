@@ -1,20 +1,21 @@
+import { db, schema } from 'kumoh/db';
 import { defineQueue } from 'kumoh/queue';
 
 type EmailMessage = {
-  to: string;
-  subject: string;
-  body: string;
+  message: string;
 };
 
 export default defineQueue<EmailMessage>(async (batch) => {
   for (const message of batch.messages) {
     try {
-      console.log(
-        `Sending email to ${message.body.to}: ${message.body.subject}`
-      );
+      await db.insert(schema.queueResults).values({
+        queue: 'email',
+        message: message.body.message,
+        processedAt: new Date().toISOString(),
+      });
       message.ack();
     } catch (error) {
-      console.error('Failed to send email:', error);
+      console.error('Failed to process email:', error);
       message.retry();
     }
   }

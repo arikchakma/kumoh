@@ -1,20 +1,21 @@
+import { db, schema } from 'kumoh/db';
 import { defineQueue } from 'kumoh/queue';
 
 type NotificationMessage = {
-  to: string;
-  subject: string;
-  body: string;
+  message: string;
 };
 
 export default defineQueue<NotificationMessage>(async (batch) => {
   for (const message of batch.messages) {
     try {
-      console.log(
-        `Sending notification to ${message.body.to}: ${message.body.subject}`
-      );
+      await db.insert(schema.queueResults).values({
+        queue: 'notifications',
+        message: message.body.message,
+        processedAt: new Date().toISOString(),
+      });
       message.ack();
     } catch (error) {
-      console.error('Failed to send notification:', error);
+      console.error('Failed to process notification:', error);
       message.retry();
     }
   }

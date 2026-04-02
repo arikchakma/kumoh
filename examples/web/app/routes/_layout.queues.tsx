@@ -1,79 +1,101 @@
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { Section } from '~/components/section';
+import { queryClient } from '~/lib/query-client';
+import {
+  deleteQueueResultOptions,
+  sendToQueueOptions,
+} from '~/mutations/queues';
+import { queueResultsOptions } from '~/queries/queues';
 
-type QueueResult = {
-  id: number;
-  key: string;
-  value: string;
-  createdAt: string;
-};
-
-const initialResults: QueueResult[] = [
-  {
-    id: 1,
-    key: 'welcome',
-    value: 'Hello from queue',
-    createdAt: '2026-04-01T10:00:00Z',
-  },
-  {
-    id: 2,
-    key: 'notify',
-    value: 'User signed up',
-    createdAt: '2026-04-01T11:00:00Z',
-  },
-];
+export async function clientLoader() {
+  await queryClient.ensureQueryData(queueResultsOptions());
+  return {};
+}
 
 export default function Queues() {
-  const [results, setResults] = useState(initialResults);
-  const [key, setKey] = useState('');
-  const [value, setValue] = useState('');
+  const qc = useQueryClient();
+  const resultsKey = queueResultsOptions().queryKey;
 
-  function send(e: React.FormEvent) {
+  const { data: results } = useSuspenseQuery(queueResultsOptions());
+
+  const [queueName, setQueueName] = useState<'notifications' | 'email'>(
+    'notifications'
+  );
+  const [message, setMessage] = useState('');
+
+  const sendToQueue = useMutation({
+    ...sendToQueueOptions(),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: resultsKey });
+    },
+  });
+
+  const deleteResult = useMutation({
+    ...deleteQueueResultOptions(),
+    onMutate: async (req) => {
+      await qc.cancelQueries({ queryKey: resultsKey });
+      const previous = qc.getQueryData(resultsKey);
+
+      qc.setQueryData(resultsKey, (old: typeof previous) => {
+        if (!old) {
+          return old;
+        }
+        return old.filter((r) => r.id !== Number(req.param.id));
+      });
+
+      return { previous };
+    },
+    onError: (_err, _params, context) => {
+      if (context?.previous) {
+        qc.setQueryData(resultsKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: resultsKey });
+    },
+  });
+
+  function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!key || !value) {
+    if (!message) {
       return;
     }
-    setResults([
-      ...results,
-      {
-        id: results.length + 1,
-        key,
-        value,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    setKey('');
-    setValue('');
-  }
-
-  function deleteResult(id: number) {
-    setResults(results.filter((r) => r.id !== id));
+    sendToQueue.mutate({ json: { queue: queueName, message } });
+    setMessage('');
   }
 
   return (
     <div className="space-y-6">
       <Section.Heading>Send Message</Section.Heading>
-      <form onSubmit={send} className="flex gap-2">
+      <form onSubmit={handleSend} className="flex gap-2">
+        <select
+          value={queueName}
+          onChange={(e) =>
+            setQueueName(e.target.value as 'notifications' | 'email')
+          }
+          className="border border-border h-7 px-2 text-xs font-pixel"
+        >
+          <option value="notifications">notifications</option>
+          <option value="email">email</option>
+        </select>
         <input
           type="text"
-          placeholder="my-key"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          required
-          className="border border-border h-7 px-2 text-xs font-pixel flex-1"
-        />
-        <input
-          type="text"
-          placeholder="my-value"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          placeholder="Message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
           required
           className="border border-border h-7 px-2 text-xs font-pixel flex-1"
         />
         <button
           type="submit"
-          className="bg-ink text-white h-7 px-3 text-xs font-pixel hover:opacity-90 whitespace-nowrap"
+          disabled={sendToQueue.isPending}
+          className="bg-ink text-white h-7 px-3 text-xs font-pixel hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
         >
           Send to Queue
         </button>
@@ -88,39 +110,50 @@ export default function Queues() {
           <thead>
             <tr className="border-b border-border bg-ink font-mono">
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Key
+                Queue
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Value
+                Message
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Created
+                Processed
               </th>
               <th className="px-2.5 py-1.5" />
             </tr>
           </thead>
           <tbody className="font-pixel">
-            {results.map((r) => (
-              <tr key={r.id} className="border-b border-border last:border-0">
-                <td className="px-2.5 py-1.5">
-                  <code>{r.key}</code>
-                </td>
-                <td className="px-2.5 py-1.5">
-                  <code>{r.value}</code>
-                </td>
-                <td className="px-2.5 py-1.5 text-text-dim">
-                  {new Date(r.createdAt).toLocaleString()}
-                </td>
-                <td className="px-2.5 py-1.5 text-right">
-                  <button
-                    onClick={() => deleteResult(r.id)}
-                    className="text-text-dim hover:text-red-500"
-                  >
-                    ×
-                  </button>
+            {results.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="px-2.5 py-3 text-center text-text-dim"
+                >
+                  No results yet
                 </td>
               </tr>
-            ))}
+            ) : (
+              results.map((r) => (
+                <tr key={r.id} className="border-b border-border last:border-0">
+                  <td className="px-2.5 py-1.5">
+                    <code>{r.queue}</code>
+                  </td>
+                  <td className="px-2.5 py-1.5">{r.message}</td>
+                  <td className="px-2.5 py-1.5 text-text-dim whitespace-nowrap">
+                    {new Date(r.processedAt).toLocaleString()}
+                  </td>
+                  <td className="px-2.5 py-1.5 text-right">
+                    <button
+                      onClick={() =>
+                        deleteResult.mutate({ param: { id: String(r.id) } })
+                      }
+                      className="text-text-dim hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

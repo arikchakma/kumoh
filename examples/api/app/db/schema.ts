@@ -16,3 +16,10 @@ export const sessions = sqliteTable('sessions', {
   userId: integer('user_id').references(() => users.id),
   expiresAt: text('expires_at'),
 });
+
+export const queueResults = sqliteTable('queue_results', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  queue: text('queue').notNull(),
+  message: text('message').notNull(),
+  processedAt: text('processed_at').notNull(),
+});

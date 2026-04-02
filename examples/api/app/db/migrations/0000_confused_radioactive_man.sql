@@ -1,3 +1,10 @@
+CREATE TABLE `queue_results` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`queue` text NOT NULL,
+	`message` text NOT NULL,
+	`processed_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`user_id` integer,
