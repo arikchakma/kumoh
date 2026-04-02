@@ -1,9 +1,12 @@
+import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 import { defineCommand } from 'citty';
 
 import { scanQueues } from '../server/scanner.ts';
-import { loadConfig, saveConfig } from './config.ts';
+import { loadConfig, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
-import { confirmWithInput } from './prompt.ts';
+import { confirm, confirmWithInput } from './prompt.ts';
 import { wrangler } from './wrangler.ts';
 
 async function tryDelete(
@@ -23,7 +26,33 @@ export const destroy = defineCommand({
     name: 'destroy',
     description: 'Tear down all deployed Cloudflare resources',
   },
-  async run() {
+  args: {
+    prod: {
+      type: 'boolean',
+      description: 'Destroy all deployed Cloudflare resources in production',
+      default: false,
+    },
+  },
+  async run({ args }) {
+    if (!args.prod) {
+      const kumohDir = resolve(root, '.kumoh');
+
+      console.log(`\nThis will delete the local .kumoh directory:`);
+      console.log(`  ${kumohDir}`);
+      console.log(`  (local D1 database, generated types, drizzle config)\n`);
+
+      const confirmed = await confirm('Continue?');
+      if (!confirmed) {
+        console.log('Aborted.');
+        process.exit(0);
+      }
+
+      await rm(kumohDir, { recursive: true, force: true });
+      log.done('Local resources deleted');
+      console.log('');
+      return;
+    }
+
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
     const deploy = config.deploy;
