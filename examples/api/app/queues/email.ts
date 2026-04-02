@@ -1,10 +1,10 @@
 import { defineQueue } from 'kumoh/queue';
 
-interface EmailMessage {
+type EmailMessage = {
   to: string;
   subject: string;
   body: string;
-}
+};
 
 export default defineQueue<EmailMessage>(async (batch) => {
   for (const message of batch.messages) {
