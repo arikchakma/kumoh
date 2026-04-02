@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   isRouteErrorResponse,
   Links,
@@ -6,6 +7,8 @@ import {
   Scripts,
   ScrollRestoration,
 } from 'react-router';
+
+import { queryClient } from '~/lib/query-client';
 
 import type { Route } from './+types/root';
 
@@ -48,7 +51,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
 
       <body className="antialiased">
-        {children}
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

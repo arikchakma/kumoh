@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { CodeBlock } from '~/components/code-block';
 import { Section } from '~/components/section';
+import { apiClient } from '~/lib/api-client';
 
 const clientCode = `import { hcWithType } from '@acme/client';
 
@@ -31,30 +32,58 @@ export default function RPC() {
     { name: 'GET /api/users/:id', status: null, data: null, loading: false },
   ]);
 
-  function callEndpoint(index: number) {
+  async function callEndpoint(index: number) {
     setEndpoints((prev) =>
       prev.map((ep, i) => (i === index ? { ...ep, loading: true } : ep))
     );
 
-    setTimeout(() => {
-      const responses = [
-        {
-          status: 200,
-          data: '{ "message": "Hello from Kumoh!", "visits": 42 }',
-        },
-        {
-          status: 200,
-          data: '[{ "id": 1, "name": "Alice", "email": "alice@test.com" }]',
-        },
-        { status: 404, data: '{ "error": "User not found: 123" }' },
-      ];
+    try {
+      let res: Response;
+
+      switch (index) {
+        case 0:
+          res = await apiClient.api.hello.$get();
+          break;
+        case 1:
+          res = await apiClient.api.users.$get();
+          break;
+        case 2:
+          res = await apiClient.api.users[':id'].$get({
+            param: { id: '1' },
+          });
+          break;
+        default:
+          return;
+      }
+
+      const data = await res.json();
 
       setEndpoints((prev) =>
         prev.map((ep, i) =>
-          i === index ? { ...ep, loading: false, ...responses[i] } : ep
+          i === index
+            ? {
+                ...ep,
+                loading: false,
+                status: res.status,
+                data: JSON.stringify(data, null, 2),
+              }
+            : ep
         )
       );
-    }, 500);
+    } catch (err) {
+      setEndpoints((prev) =>
+        prev.map((ep, i) =>
+          i === index
+            ? {
+                ...ep,
+                loading: false,
+                status: 0,
+                data: `Error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+              }
+            : ep
+        )
+      );
+    }
   }
 
   return (

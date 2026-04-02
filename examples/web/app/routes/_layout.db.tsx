@@ -1,90 +1,122 @@
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { Section } from '~/components/section';
+import { queryClient } from '~/lib/query-client';
+import { createUserOptions, deleteUserOptions } from '~/mutations/users';
+import { userListOptions } from '~/queries/users';
 
-type Note = {
-  id: number;
-  title: string;
-  body: string;
-  createdAt: string;
-};
-
-const initialNotes: Note[] = [
-  {
-    id: 1,
-    title: 'First note',
-    body: 'Hello from D1',
-    createdAt: '2026-04-01T10:00:00Z',
-  },
-  {
-    id: 2,
-    title: 'Setup guide',
-    body: 'Run kumoh init to get started',
-    createdAt: '2026-04-01T11:30:00Z',
-  },
-  {
-    id: 3,
-    title: 'Deploy',
-    body: 'kumoh deploy handles everything',
-    createdAt: '2026-04-01T14:00:00Z',
-  },
-];
+export async function clientLoader() {
+  await queryClient.ensureQueryData(userListOptions());
+  return {};
+}
 
 export default function DB() {
-  const [notes, setNotes] = useState(initialNotes);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const qc = useQueryClient();
+  const usersKey = userListOptions().queryKey;
 
-  function addNote(e: React.FormEvent) {
+  const { data: users } = useSuspenseQuery(userListOptions());
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
+  const createUser = useMutation({
+    ...createUserOptions(),
+    onMutate: async (req) => {
+      await qc.cancelQueries({ queryKey: usersKey });
+      const previous = qc.getQueryData(usersKey);
+
+      qc.setQueryData(usersKey, (old: typeof previous) => {
+        if (!old) {
+          return old;
+        }
+        return [
+          ...old,
+          { id: Date.now(), name: req.json.name, email: req.json.email },
+        ];
+      });
+
+      return { previous };
+    },
+    onError: (_err, _params, context) => {
+      if (context?.previous) {
+        qc.setQueryData(usersKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: usersKey });
+    },
+  });
+
+  const deleteUser = useMutation({
+    ...deleteUserOptions(),
+    onMutate: async (req) => {
+      await qc.cancelQueries({ queryKey: usersKey });
+      const previous = qc.getQueryData(usersKey);
+
+      qc.setQueryData(usersKey, (old: typeof previous) => {
+        if (!old) {
+          return old;
+        }
+        return old.filter((u) => u.id !== Number(req.param.id));
+      });
+
+      return { previous };
+    },
+    onError: (_err, _params, context) => {
+      if (context?.previous) {
+        qc.setQueryData(usersKey, context.previous);
+      }
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: usersKey });
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title) {
+    if (!name || !email) {
       return;
     }
-    setNotes([
-      ...notes,
-      {
-        id: notes.length + 1,
-        title,
-        body,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-    setTitle('');
-    setBody('');
-  }
-
-  function deleteNote(id: number) {
-    setNotes(notes.filter((n) => n.id !== id));
+    createUser.mutate({ json: { name, email } });
+    setName('');
+    setEmail('');
   }
 
   return (
     <div className="space-y-6">
-      <Section.Heading>Add Note</Section.Heading>
-      <form onSubmit={addNote} className="flex gap-2">
+      <Section.Heading>Add User</Section.Heading>
+      <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
           className="border border-border h-7 px-2 text-xs font-pixel flex-1"
         />
         <input
-          type="text"
-          placeholder="Body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
           className="border border-border h-7 px-2 text-xs font-pixel flex-1"
         />
         <button
           type="submit"
-          className="bg-ink text-white h-7 px-3 text-xs font-pixel hover:opacity-90"
+          disabled={createUser.isPending}
+          className="bg-ink text-white h-7 px-3 text-xs font-pixel hover:opacity-90 disabled:opacity-50"
         >
           Add
         </button>
       </form>
 
-      <Section.Heading>Notes ({notes.length})</Section.Heading>
+      <Section.Heading>Users ({users.length})</Section.Heading>
       <div className="border border-ink overflow-hidden">
         <table className="w-full text-[11px]">
           <thead>
@@ -93,39 +125,46 @@ export default function DB() {
                 ID
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Title
+                Name
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Body
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Created
+                Email
               </th>
               <th className="px-2.5 py-1.5" />
             </tr>
           </thead>
           <tbody className="font-pixel">
-            {notes.map((note) => (
-              <tr
-                key={note.id}
-                className="border-b border-border last:border-0"
-              >
-                <td className="px-2.5 py-1.5 text-text-dim">{note.id}</td>
-                <td className="px-2.5 py-1.5">{note.title}</td>
-                <td className="px-2.5 py-1.5 text-text-dim">{note.body}</td>
-                <td className="px-2.5 py-1.5 text-text-dim">
-                  {new Date(note.createdAt).toLocaleString()}
-                </td>
-                <td className="px-2.5 py-1.5 text-right">
-                  <button
-                    onClick={() => deleteNote(note.id)}
-                    className="text-text-dim hover:text-red-500"
-                  >
-                    ×
-                  </button>
+            {users.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="px-2.5 py-3 text-center text-text-dim"
+                >
+                  No users yet
                 </td>
               </tr>
-            ))}
+            ) : (
+              users.map((user) => (
+                <tr
+                  key={user.id}
+                  className="border-b border-border last:border-0"
+                >
+                  <td className="px-2.5 py-1.5 text-text-dim">{user.id}</td>
+                  <td className="px-2.5 py-1.5">{user.name}</td>
+                  <td className="px-2.5 py-1.5 text-text-dim">{user.email}</td>
+                  <td className="px-2.5 py-1.5 text-right">
+                    <button
+                      onClick={() =>
+                        deleteUser.mutate({ param: { id: String(user.id) } })
+                      }
+                      className="text-text-dim hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
