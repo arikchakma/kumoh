@@ -14,9 +14,11 @@
     "dev": "vp dev"
   },
   "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.9",
-    "kumoh": "workspace:*"
+    "kumoh": "workspace:*",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260401.1",
