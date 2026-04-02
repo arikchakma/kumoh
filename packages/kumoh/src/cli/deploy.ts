@@ -76,6 +76,8 @@ async function provisionKV(name: string, state: DeployState): Promise<void> {
   log.ok(`KV namespace (${created.id.slice(0, 8)}…) — created`);
 }
 
+// R2 has no "get bucket info" API like D1/KV, so we just try to create
+// and treat failure as "already exists"
 async function provisionR2(name: string): Promise<void> {
   try {
     await wrangler(`r2 bucket create ${name}`);

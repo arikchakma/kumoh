@@ -6,9 +6,16 @@ import type { Plugin } from 'vite';
 
 import { virtualModules } from './server/plugin.ts';
 import { scanCrons, scanQueues } from './server/scanner.ts';
-import type { KumohConfig } from './types.ts';
 
-export type { KumohConfig } from './types.ts';
+export type KumohConfig = {
+  appName: string;
+  serverEntry: string;
+  routesDir: string;
+  cronsDir: string;
+  queuesDir: string;
+  schemaPath: string;
+};
+
 export { defineScheduled } from './factory/scheduled.ts';
 export { defineQueue } from './factory/queue.ts';
 

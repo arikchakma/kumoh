@@ -6,6 +6,8 @@ import { root } from './config.ts';
 import { log } from './log.ts';
 import { confirm } from './prompt.ts';
 
+// Wrangler ships as a dependency of kumoh, not the user's project.
+// We use createRequire to resolve it from kumoh's node_modules.
 function resolveBin(): string {
   const req = createRequire(
     resolve(root, 'node_modules', 'kumoh', 'package.json')
@@ -13,6 +15,8 @@ function resolveBin(): string {
   return req.resolve('wrangler/bin/wrangler.js');
 }
 
+// Stderr is intentionally swallowed — we only care about exit code
+// and stdout for version checks and whoami
 function run(cmd: string): Promise<{ code: number; stdout: string }> {
   return new Promise((resolve) => {
     let stdout = '';

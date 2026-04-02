@@ -13,8 +13,8 @@ import {
   VIRTUAL_APP,
   VIRTUAL_ENTRY,
 } from '../constants.ts';
+import type { KumohConfig } from '../index.ts';
 import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
-import type { KumohConfig } from '../types.ts';
 import { generateAiModule } from '../virtual/ai.ts';
 import { generateDbModule } from '../virtual/db.ts';
 import { generateEmailModule } from '../virtual/email.ts';
@@ -101,7 +101,6 @@ function generateTypes(config: KumohConfig, root: string): void {
     );
   }
 
-  // Generate KumohEnv with all bindings for defineHandler/defineMiddleware
   const bindings: string[] = [];
   if (existsSync(config.schemaPath)) {
     bindings.push('    DB: D1Database;');
@@ -162,7 +161,8 @@ function generateTypes(config: KumohConfig, root: string): void {
       const fullPath =
         raw.endsWith('/') && raw !== '/' ? raw.slice(0, -1) : raw;
 
-      // Read the file to find which exports it has
+      // We check source text instead of AST because we only need to know
+      // which HTTP methods are exported, not parse the full module
       const code = readFileSync(route.importPath, 'utf-8');
       let hasNamedExport = false;
 
@@ -175,7 +175,7 @@ function generateTypes(config: KumohConfig, root: string): void {
         }
       }
 
-      // Handle default Hono instance export: export default new Hono()...
+      // Falls back to .route() for Hono sub-app exports
       if (!hasNamedExport && code.includes('export default')) {
         const alias = `_h${rpcIdx++}`;
         rpcImports.push(`import ${alias} from '${relative}';`);
@@ -231,6 +231,9 @@ export function virtualModules(config: KumohConfig): Plugin {
         server.watcher.add(dir);
       }
 
+      // Only care about file adds/removes — content changes are handled by
+      // Vite's HMR. When a route/cron/queue file is added or deleted, we
+      // regenerate types and force a full reload.
       server.watcher.on('all', (event, filePath) => {
         if (event !== 'add' && event !== 'unlink') {
           return;

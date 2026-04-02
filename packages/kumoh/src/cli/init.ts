@@ -106,10 +106,10 @@ export default defineScheduled(async (controller) => {
 
   messages: `import { defineQueue } from 'kumoh/queue';
 
-interface Message {
+type Message = {
   type: string;
   payload: string;
-}
+};
 
 export default defineQueue<Message>(async (batch) => {
   for (const msg of batch.messages) {
@@ -255,11 +255,11 @@ export const init = defineCommand({
       }
     }
 
-    // Git init
     const isGitRepo = await exists(resolve(dir, '.git'));
     if (!isGitRepo) {
       const shouldGit = await confirm('Initialize git repository?');
       if (shouldGit) {
+        // Chained so we bail early if git isn't installed or init fails
         const gitOk =
           (await execSilent('git init', dir)) === 0 &&
           (await execSilent('git checkout -b main', dir)) === 0 &&

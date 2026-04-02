@@ -77,12 +77,10 @@ export function findInheritedMiddleware(
   middlewareMap: Map<string, string>,
   appliedDirs: Set<string>
 ): string | undefined {
-  // First check exact directory
   if (middlewareMap.has(dir)) {
     return middlewareMap.get(dir);
   }
 
-  // Walk up parent directories
   const parts = dir.split('/');
   for (let i = parts.length - 1; i >= 0; i--) {
     const parentDir = parts.slice(0, i).join('/');

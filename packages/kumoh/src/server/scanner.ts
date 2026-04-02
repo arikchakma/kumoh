@@ -11,7 +11,33 @@ import {
   sortByDepth,
   sortSubPaths,
 } from '../lib/file.ts';
-import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
+export type ScannedRouteFile = {
+  importPath: string;
+  relativePath: string;
+  subPath: string;
+};
+
+export type ScannedRouteGroup = {
+  mountPath: string;
+  middlewarePath?: string;
+  routes: ScannedRouteFile[];
+};
+
+export type ScannedCron = {
+  filePath: string;
+  name: string;
+  importPath: string;
+  schedule: string;
+};
+
+export type ScannedQueue = {
+  filePath: string;
+  name: string;
+  camelName: string;
+  binding: string;
+  queueName: string;
+  importPath: string;
+};
 
 export function findServerEntry(
   root: string,
@@ -55,7 +81,6 @@ export function groupRoutesByDirectory(
     ignore: ['**/*.d.ts'],
   });
 
-  // Separate middleware from route files
   const middlewareMap = new Map<string, string>();
   const routeFiles: Array<{ file: string; dir: string; name: string }> = [];
 
@@ -70,7 +95,6 @@ export function groupRoutesByDirectory(
     }
   }
 
-  // Collect all unique directories
   const allDirs = new Set<string>();
   for (const [dir] of middlewareMap) {
     allDirs.add(dir);
@@ -79,7 +103,6 @@ export function groupRoutesByDirectory(
     allDirs.add(dir);
   }
 
-  // Build groups with middleware inheritance
   const dirMap = new Map<string, ScannedRouteGroup>();
   const appliedMiddlewareDirs = new Set<string>();
 
@@ -97,7 +120,6 @@ export function groupRoutesByDirectory(
 
     if (mwPath) {
       group.middlewarePath = mwPath;
-      // Track that this middleware has been applied at this directory level
       const mwDir = [...middlewareMap.entries()].find(
         ([_, p]) => p === mwPath
       )?.[0];
@@ -109,7 +131,6 @@ export function groupRoutesByDirectory(
     dirMap.set(dir, group);
   }
 
-  // Add routes to their groups
   for (const { file, dir, name } of routeFiles) {
     const group = dirMap.get(dir)!;
     group.routes.push({
@@ -119,12 +140,10 @@ export function groupRoutesByDirectory(
     });
   }
 
-  // Sort routes within each directory: static before dynamic
   for (const group of dirMap.values()) {
     sortSubPaths(group.routes);
   }
 
-  // Return sorted shallow→deep
   const sorted = sortByDepth([...dirMap.keys()]);
   return sorted.map((dir) => dirMap.get(dir)!);
 }

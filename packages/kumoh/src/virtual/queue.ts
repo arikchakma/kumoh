@@ -1,4 +1,4 @@
-import type { ScannedQueue } from '../types.ts';
+import type { ScannedQueue } from '../server/scanner.ts';
 
 /**
  * Generates the `kumoh/queue` virtual module.

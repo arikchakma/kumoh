@@ -1,11 +1,15 @@
 import { genImport, genSafeVariableName } from 'knitwork';
 
-import type { ScannedCron, ScannedQueue, ScannedRouteGroup } from '../types.ts';
+import type {
+  ScannedCron,
+  ScannedQueue,
+  ScannedRouteGroup,
+} from './scanner.ts';
 
 /**
  * Generates a minimal worker entry that imports modules and
  * calls `defineWorker()` at runtime. All wiring logic lives in
- * `create-app.ts`, not in generated strings.
+ * worker.ts, not in generated strings.
  */
 export function buildWorkerEntry(
   serverEntry: string,
@@ -15,24 +19,20 @@ export function buildWorkerEntry(
 ): string {
   const lines: string[] = [];
 
-  // Imports
   lines.push("import { defineWorker } from 'kumoh/server';");
   lines.push(genImport(serverEntry, [{ name: 'default', as: 'init' }]));
 
-  // Middleware imports
   const mwEntries: string[] = [];
   let mwIdx = 0;
   for (const group of routeGroups) {
     if (group.middlewarePath) {
       const name = `mw_${mwIdx++}`;
       lines.push(`import * as ${name} from "${group.middlewarePath}";`);
-      // Reconstruct relative path key for the middleware
       const key = group.middlewarePath;
       mwEntries.push(`  "${key}": ${name}`);
     }
   }
 
-  // Route imports
   const routeEntries: string[] = [];
   let routeIdx = 0;
   for (const group of routeGroups) {
@@ -43,7 +43,6 @@ export function buildWorkerEntry(
     }
   }
 
-  // Cron imports
   const cronEntries: string[] = [];
   for (const cron of crons) {
     const safe = genSafeVariableName(cron.name);
@@ -60,7 +59,6 @@ export function buildWorkerEntry(
     );
   }
 
-  // Queue imports
   const queueEntries: string[] = [];
   for (const queue of queues) {
     const safe = genSafeVariableName(queue.name);
@@ -69,7 +67,6 @@ export function buildWorkerEntry(
     queueEntries.push(`  "${queue.queueName}": ${handler}`);
   }
 
-  // defineWorker() call
   lines.push('');
   lines.push('export default defineWorker({');
   lines.push('  init,');

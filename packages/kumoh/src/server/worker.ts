@@ -29,11 +29,12 @@ export type DefineWorkerOptions<E extends Env = Env> = {
 };
 
 /**
- * Groups route file paths by their parent directory.
- * Matches HonoX's `groupByDirectory()`.
+ * Takes a flat map of route paths to modules and groups them by
+ * parent directory. Within each directory, static files sort before
+ * dynamic ones so Hono matches exact paths first.
  *
- * Input:  `{ 'api/hello.ts': mod, 'api/users/index.ts': mod2 }`
- * Output: `{ 'api': { 'hello.ts': mod }, 'api/users': { 'index.ts': mod2 } }`
+ * { 'api/hello.ts': mod, 'api/users/$id.ts': mod2 }
+ * -> { 'api': { 'hello.ts': mod }, 'api/users': { '$id.ts': mod2 } }
  */
 function groupByDirectory(
   files: Record<string, RouteModule>
@@ -51,7 +52,7 @@ function groupByDirectory(
     grouped[dir][filename] = mod;
   }
 
-  // Sort files within each directory: static before dynamic ($)
+  // Static before dynamic -- hello.ts registers before $id.ts
   for (const [dir, files] of Object.entries(grouped)) {
     const sorted = Object.entries(files).sort(([a], [b]) => {
       if (a.startsWith('$') && !b.startsWith('$')) {
@@ -69,8 +70,8 @@ function groupByDirectory(
 }
 
 /**
- * Sorts directory keys shallow→deep.
- * Matches HonoX's `sortDirectoriesByDepth()`.
+ * Sorts directories shallow to deep. Parent dirs must be processed
+ * before children so middleware inheritance works correctly.
  */
 function sortDirectories(dirs: string[]): string[] {
   return dirs.sort((a, b) => {
@@ -81,7 +82,8 @@ function sortDirectories(dirs: string[]): string[] {
 }
 
 /**
- * Converts a directory-relative path to a Hono mount path.
+ * Converts a directory path to a Hono mount path.
+ * '' -> '/', 'api/$version' -> '/api/:version'
  */
 function dirToMountPath(dir: string): string {
   if (!dir) {
@@ -94,15 +96,15 @@ function dirToMountPath(dir: string): string {
 }
 
 /**
- * Finds middleware for a directory, walking up parent dirs if needed.
- * Matches HonoX's middleware inheritance (lines 229-252).
+ * Walks up the directory tree to find middleware for a directory.
+ * Middleware replaces, not stacks -- if /v1/users/ has its own
+ * _middleware.ts, it won't also get /v1/'s middleware.
  */
 function findMiddlewareForDir(
   dir: string,
   middlewareDirs: Map<string, MiddlewareModule>,
   appliedDirs: Set<string>
 ): MiddlewareModule | undefined {
-  // Check exact directory
   const exactKey = dir ? `${dir}/_middleware.ts` : '_middleware.ts';
   for (const [key, mod] of middlewareDirs) {
     if (key === exactKey || key === exactKey.replace('.ts', '.js')) {
@@ -110,7 +112,7 @@ function findMiddlewareForDir(
     }
   }
 
-  // Walk up parent directories
+  // No own middleware -- walk up parents
   const parts = dir.split('/');
   for (let i = parts.length - 1; i >= 0; i--) {
     const parentDir = parts.slice(0, i).join('/');
@@ -120,7 +122,7 @@ function findMiddlewareForDir(
 
     for (const [key, mod] of middlewareDirs) {
       if (key === parentKey || key === parentKey.replace('.ts', '.js')) {
-        // Skip if already applied to an ancestor
+        // Already applied to an ancestor, skip to avoid double execution
         if (appliedDirs.has(key)) {
           return undefined;
         }
@@ -133,9 +135,9 @@ function findMiddlewareForDir(
 }
 
 /**
- * Wraps middleware handlers with WeakMap deduplication to prevent
- * double execution when middleware is inherited by child directories.
- * Matches HonoX lines 265-278.
+ * Wraps middleware with per-request deduplication. Without this,
+ * inherited middleware would run multiple times when a request
+ * passes through parent and child sub-apps that share it.
  */
 function wrapMiddleware(
   handlers: MiddlewareHandler[],
@@ -158,17 +160,13 @@ function wrapMiddleware(
 }
 
 /**
- * Registers a route module on a Hono sub-app.
- *
- * Supports:
- * 1. `export const GET/POST/... = defineHandler(...)` — named method handlers
- * 2. `export default new Hono()` — Hono sub-app
+ * Registers a route file's exports onto a Hono sub-app.
+ * Named method exports (defineHandler) get spread since createHandlers
+ * returns an array. Default Hono sub-apps get mounted via .route().
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function registerRoute(sub: any, path: string, mod: RouteModule): void {
   const defaultExport = mod.default;
 
-  // Hono sub-app instance
   if (
     defaultExport &&
     typeof defaultExport === 'object' &&
@@ -178,7 +176,6 @@ function registerRoute(sub: any, path: string, mod: RouteModule): void {
     return;
   }
 
-  // Named method exports: export const GET = defineHandler(...)
   for (const m of METHODS) {
     const handler = mod[m];
     if (handler) {
@@ -188,31 +185,22 @@ function registerRoute(sub: any, path: string, mod: RouteModule): void {
   }
 }
 
+/**
+ * Assembles a Cloudflare Worker from pre-imported route, middleware,
+ * cron, and queue modules. Each directory gets its own Hono sub-app
+ * to avoid the "matcher already built" error that happens when you
+ * add routes to an app that has already handled a request.
+ */
 export function defineWorker<E extends Env = Env>(
   options: DefineWorkerOptions<E>
 ): ExportedHandler {
   const app = new Hono();
   if (options.init) {
-    // @ts-expect-error - we don't know the type of the env
-    // before the init function is called
+    // @ts-expect-error - Env generic mismatch: we create Hono<BlankEnv>
+    // but init expects Hono<KumohEnv>. Works at runtime, just not typed.
     options.init(app);
   }
 
-  // Routes registration and middleware inheritance
-  // we group the routes by directory and apply the middleware
-  // it's group until we find a _middleware.ts file
-  // Example:
-  //
-  //     app/routes/
-  //      _middleware.ts           ← applies to ALL routes (logging, cors, etc.)
-  //      v1/
-  //        _middleware.ts          ← applies to /v1/* (auth)
-  //        howdy.ts                ← only the /v1/_middleware.ts is applied
-  //        $slug/
-  //          _middleware.ts
-  //          index.ts              ← only the /v1/$slug/_middleware.ts is applied
-  //
-  // we then mount the sub-app on the main app at the appropriate path
   if (options.routes) {
     const routesByDir = groupByDirectory(options.routes);
     const middlewareDirs = new Map(Object.entries(options.middleware ?? {}));
@@ -221,33 +209,19 @@ export function defineWorker<E extends Env = Env>(
       WeakSet<Request>
     >();
     const appliedMiddlewarePaths = new Set<string>();
-    const allDirs = new Set<string>();
 
-    // Collect all directories (from routes + middleware)
+    const allDirs = new Set<string>();
     for (const dir of Object.keys(routesByDir)) {
       allDirs.add(dir);
     }
-
     for (const key of middlewareDirs.keys()) {
       const dir = key.replace(/\/?_middleware\.(ts|js)$/, '');
       allDirs.add(dir);
     }
 
-    // Sort directories shallow → deep and process them
-    // we process the directories in order of depth
-    // so that the middleware is applied in the correct order
-    // and the routes are registered in the correct order
-    // Example:
-    //     /
-    //     /v1
-    //     /v1/users
-    //     /v1/users/$id
-    //     /v1/users/$id/index.ts
-    //     /v1/users/$id/index.ts
     for (const dir of sortDirectories([...allDirs])) {
       const sub = new Hono();
 
-      // Apply middleware (with inheritance from parent dirs)
       const mwMod = findMiddlewareForDir(
         dir,
         middlewareDirs,
@@ -263,7 +237,7 @@ export function defineWorker<E extends Env = Env>(
         );
         sub.use('*', ...wrapped);
 
-        // Track applied middleware path
+        // Mark as applied so children don't re-inherit it
         for (const [key, mod] of middlewareDirs) {
           if (mod === mwMod) {
             appliedMiddlewarePaths.add(key);
@@ -284,16 +258,10 @@ export function defineWorker<E extends Env = Env>(
     }
   }
 
-  // The final worker export for Cloudflare Workers
-  // with the fetch method and the scheduled and queue methods
   const worker: ExportedHandler = {
     fetch: app.fetch,
   };
 
-  // Handle the CRON jobs
-  // it will be called by the Cloudflare Workers runtime
-  // it's a map of scheduler functions by schedule string
-  // we automatically dispatch the cron job to the appropriate function
   if (options.crons && Object.keys(options.crons).length) {
     const cronMap = new Map<string, ExportedHandlerScheduledHandler>();
     for (const entry of Object.values(options.crons)) {
@@ -307,9 +275,6 @@ export function defineWorker<E extends Env = Env>(
     };
   }
 
-  // Handle the QUEUE jobs
-  // it's a map of queue functions by queue name
-  // we automatically dispatch the queue job to the appropriate function
   if (options.queues && Object.keys(options.queues).length) {
     const queueMap = new Map(Object.entries(options.queues));
     worker.queue = async (batch, env, ctx) => {
