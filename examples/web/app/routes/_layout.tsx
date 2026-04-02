@@ -23,7 +23,7 @@ const nav = [
 
 export default function Layout() {
   return (
-    <Section.Root className="pt-8 px-4">
+    <Section.Root className="py-8 px-4">
       <Section.Heading>Kitchen Sink</Section.Heading>
       <Section.Description>
         A playground app that exercises every major kumoh feature.

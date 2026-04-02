@@ -11,6 +11,7 @@
     "db:generate": "kumoh db generate",
     "db:migrate": "kumoh db migrate",
     "db:studio": "kumoh db studio",
+    "destroy:local": "kumoh destroy",
     "dev": "vp dev"
   },
   "dependencies": {

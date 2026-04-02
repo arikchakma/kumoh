@@ -11,7 +11,7 @@ export function SectionRoot(props: SectionRootProps) {
   const { children, className } = props;
 
   return (
-    <div className={cn('mx-auto h-dvh max-w-lg bg-white', className)}>
+    <div className={cn('mx-auto min-h-dvh max-w-lg bg-white', className)}>
       {children}
     </div>
   );
