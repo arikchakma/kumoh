@@ -1,3 +1,11 @@
+CREATE TABLE `objects` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`key` text NOT NULL,
+	`size` integer NOT NULL,
+	`content_type` text NOT NULL,
+	`uploaded_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `queue_results` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`queue` text NOT NULL,

@@ -23,3 +23,11 @@ export const queueResults = sqliteTable('queue_results', {
   message: text('message').notNull(),
   processedAt: text('processed_at').notNull(),
 });
+
+export const objects = sqliteTable('objects', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  key: text('key').notNull(),
+  size: integer('size').notNull(),
+  contentType: text('content_type').notNull(),
+  uploadedAt: text('uploaded_at').notNull(),
+});
