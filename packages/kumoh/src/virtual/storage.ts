@@ -4,7 +4,8 @@ import { env } from "cloudflare:workers";
 
 export const storage = new Proxy({}, {
   get(_, prop) {
-    return Reflect.get(env.BUCKET, prop);
+    const value = Reflect.get(env.BUCKET, prop);
+    return typeof value === 'function' ? value.bind(env.BUCKET) : value;
   }
 });
 `;

@@ -18,7 +18,7 @@ export function defineQueue(handler) { return handler; }
   const properties = queues
     .map(
       (q) =>
-        `  ${q.camelName}: new Proxy({}, { get(_, prop) { return Reflect.get(env.${q.binding}, prop); } })`
+        `  ${q.camelName}: new Proxy({}, { get(_, prop) { const v = Reflect.get(env.${q.binding}, prop); return typeof v === 'function' ? v.bind(env.${q.binding}) : v; } })`
     )
     .join(',\n');
 
