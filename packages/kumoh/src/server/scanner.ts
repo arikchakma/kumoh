@@ -63,10 +63,8 @@ export function findServerEntry(
 
 /**
  * Groups route files by directory, attaches middleware (with inheritance),
- * and sorts directories shallow→deep (matching HonoX's pattern).
- *
- * Middleware inheritance: if a directory has no `_middleware.ts`, the nearest
- * ancestor's middleware is inherited (matching HonoX lines 229-252).
+ * and sorts directories shallow to deep. If a directory has no
+ * `_middleware.ts`, the nearest ancestor's middleware is inherited.
  */
 export function groupRoutesByDirectory(
   root: string,

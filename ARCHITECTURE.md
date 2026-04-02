@@ -5,7 +5,7 @@
 Kumoh is a Cloudflare Workers framework powered by Hono + Drizzle. It provides:
 
 - **Virtual modules** (`kumoh/db`, `kumoh/kv`, `kumoh/storage`, `kumoh/queue`, `kumoh/ai`, `kumoh/email`) that wrap Cloudflare bindings
-- **File-based API routing** (`app/routes/`) following the HonoX pattern
+- **File-based API routing** (`app/routes/`) with file-based conventions
 - **Convention-based crons and queues** (`app/crons/`, `app/queues/`)
 - **Type-safe handlers** via `defineHandler`, `defineApp`, `defineMiddleware`, `defineScheduled`, `defineQueue`
 - **Runtime wiring** via `defineWorker()` — no string codegen for app logic
@@ -55,7 +55,7 @@ my-app/
 
 ---
 
-## File-Based Routing (HonoX Pattern)
+## File-Based Routing
 
 Routes live in `app/routes/`. Each file becomes an API endpoint based on its path.
 
@@ -129,13 +129,13 @@ export default defineMiddleware(async (c, next) => {
 });
 ```
 
-Middleware deduplication via WeakMap/WeakSet prevents double execution when inherited by child directories (matches HonoX lines 265-278).
+Middleware deduplication via WeakMap/WeakSet prevents double execution when inherited by child directories .
 
 ---
 
 ## Runtime Wiring: `defineWorker()`
 
-Unlike traditional codegen frameworks that generate entire modules as strings, kumoh uses a **runtime function** that receives pre-imported modules and wires everything up with real, type-safe code. This matches HonoX's `createApp()` pattern.
+Unlike traditional codegen frameworks that generate entire modules as strings, kumoh uses a **runtime function** that receives pre-imported modules and wires everything up with real, type-safe code.
 
 ### What the Virtual Entry Generates
 
@@ -185,7 +185,7 @@ export default defineWorker({
 7. **Wires queue dispatch**: Maps queue names to handlers
 8. **Returns `{ fetch, scheduled, queue }`**: The Cloudflare Worker export
 
-This is the exact same pattern as HonoX's `createApp()` — per-directory sub-apps avoid Hono's "matcher already built" issue.
+Per-directory sub-apps avoid Hono's "matcher already built" error.
 
 ---
 
@@ -302,7 +302,7 @@ packages/kumoh/src/
   types.ts                    # Shared types
 
   server/
-    create-app.ts             # defineWorker() — runtime wiring (HonoX pattern)
+    create-app.ts             # defineWorker() — runtime wiring
     codegen.ts                # Minimal entry generation (imports + defineWorker call)
     scanner.ts                # File scanning (routes, crons, queues)
     plugin.ts                 # Vite plugin (virtual modules, types, watcher)
