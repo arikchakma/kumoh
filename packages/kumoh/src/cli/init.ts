@@ -79,9 +79,11 @@ export default defineApp((app) => {
 });
 `,
 
-  routeIndex: `export const GET = (c) => {
+  routeIndex: `import { defineHandler } from 'kumoh/app';
+
+export const GET = defineHandler((c) => {
   return c.json({ status: 'ok' });
-};
+});
 `,
 
   schema: `import { sqliteTable, text, integer } from 'kumoh/db';
@@ -127,7 +129,6 @@ dist
     JSON.stringify(
       {
         name,
-        version,
         private: true,
         type: 'module',
         scripts: {
@@ -139,14 +140,14 @@ dist
           dev: 'vp dev',
         },
         dependencies: {
-          'drizzle-orm': '^0.38.0',
-          hono: '^4.7.0',
-          kumoh: 'workspace:*',
+          'drizzle-orm': '^0.45.2',
+          hono: '^4.12.9',
+          kumoh: `^${version}`,
         },
         devDependencies: {
-          '@cloudflare/workers-types': '^4.20250312.0',
-          'drizzle-kit': '^0.30.0',
-          typescript: '~5.9.3',
+          '@cloudflare/workers-types': '^4.20260401.1',
+          'drizzle-kit': '^0.31.10',
+          typescript: '^6.0.2',
           vite: 'npm:@voidzero-dev/vite-plus-core@latest',
           'vite-plus': 'latest',
         },
