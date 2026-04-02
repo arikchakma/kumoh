@@ -21,7 +21,7 @@ import { generateEmailModule } from '../virtual/email.ts';
 import { generateKvModule } from '../virtual/kv.ts';
 import { generateQueueModule } from '../virtual/queue.ts';
 import { generateStorageModule } from '../virtual/storage.ts';
-import { buildWorkerEntry } from './codegen.ts';
+import { generateWorkerEntry } from './codegen.ts';
 import {
   findServerEntry,
   groupRoutesByDirectory,
@@ -73,6 +73,7 @@ function generateTypes(config: KumohConfig, root: string): void {
 
   const appName = config.appName ?? 'kumoh-app';
   const queues = scanQueues(root, config.queuesDir!, appName);
+
   if (queues.length) {
     const imports = queues
       .map((q) => {
@@ -299,7 +300,7 @@ export function virtualModules(config: KumohConfig): Plugin {
           config.queuesDir!,
           config.appName ?? 'kumoh-app'
         );
-        return buildWorkerEntry(serverEntry, routeGroups, crons, queues);
+        return generateWorkerEntry(serverEntry, routeGroups, crons, queues);
       }
 
       return null;

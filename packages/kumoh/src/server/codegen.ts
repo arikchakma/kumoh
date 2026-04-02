@@ -11,7 +11,7 @@ import type {
  * calls `defineWorker()` at runtime. All wiring logic lives in
  * worker.ts, not in generated strings.
  */
-export function buildWorkerEntry(
+export function generateWorkerEntry(
   serverEntry: string,
   routeGroups: ScannedRouteGroup[],
   crons: ScannedCron[],

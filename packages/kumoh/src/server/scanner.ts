@@ -7,10 +7,11 @@ import { parseSync } from 'oxc-parser';
 import {
   dirToMountPath,
   fileToSubPath,
-  findInheritedMiddleware,
-  sortByDepth,
+  findMiddlewareForDir,
+  sortDirectories,
   sortSubPaths,
 } from '../lib/file.ts';
+
 export type ScannedRouteFile = {
   importPath: string;
   relativePath: string;
@@ -106,8 +107,8 @@ export function groupRoutesByDirectory(
   const dirMap = new Map<string, ScannedRouteGroup>();
   const appliedMiddlewareDirs = new Set<string>();
 
-  for (const dir of sortByDepth([...allDirs])) {
-    const mwPath = findInheritedMiddleware(
+  for (const dir of sortDirectories([...allDirs])) {
+    const mwPath = findMiddlewareForDir(
       dir,
       middlewareMap,
       appliedMiddlewareDirs
@@ -144,7 +145,7 @@ export function groupRoutesByDirectory(
     sortSubPaths(group.routes);
   }
 
-  const sorted = sortByDepth([...dirMap.keys()]);
+  const sorted = sortDirectories([...dirMap.keys()]);
   return sorted.map((dir) => dirMap.get(dir)!);
 }
 

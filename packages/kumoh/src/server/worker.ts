@@ -1,7 +1,7 @@
 import type { Env, MiddlewareHandler } from 'hono';
 import { Hono } from 'hono';
 
-import { fileToSubPath } from '../lib/file.ts';
+import { dirToMountPath, fileToSubPath, sortDirectories } from '../lib/file.ts';
 
 const METHODS = [
   'GET',
@@ -67,32 +67,6 @@ function groupByDirectory(
   }
 
   return grouped;
-}
-
-/**
- * Sorts directories shallow to deep. Parent dirs must be processed
- * before children so middleware inheritance works correctly.
- */
-function sortDirectories(dirs: string[]): string[] {
-  return dirs.sort((a, b) => {
-    const depthA = a ? a.split('/').length : 0;
-    const depthB = b ? b.split('/').length : 0;
-    return depthA - depthB || a.localeCompare(b);
-  });
-}
-
-/**
- * Converts a directory path to a Hono mount path.
- * '' -> '/', 'api/$version' -> '/api/:version'
- */
-function dirToMountPath(dir: string): string {
-  if (!dir) {
-    return '/';
-  }
-  let path = `/${dir}`;
-  path = path.replace(/\$\.\.\.([^/]+)/g, ':$1{.+}');
-  path = path.replace(/\$([^/]+)/g, ':$1');
-  return path;
 }
 
 /**

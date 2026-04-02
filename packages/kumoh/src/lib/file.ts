@@ -40,7 +40,6 @@ export function dirToMountPath(dir: string): string {
 
 /**
  * Sorts route sub-paths: static before dynamic, alphabetical tiebreak.
- * Matches HonoX's in-directory sorting.
  */
 export function sortSubPaths<T extends { subPath: string }>(routes: T[]): T[] {
   return routes.sort((a, b) => {
@@ -57,10 +56,9 @@ export function sortSubPaths<T extends { subPath: string }>(routes: T[]): T[] {
 }
 
 /**
- * Sorts directory keys shallow→deep.
- * Matches HonoX's `sortDirectoriesByDepth`.
+ * Sorts directory keys shallow to deep.
  */
-export function sortByDepth(dirs: string[]): string[] {
+export function sortDirectories(dirs: string[]): string[] {
   return dirs.sort((a, b) => {
     const depthA = a ? a.split('/').length : 0;
     const depthB = b ? b.split('/').length : 0;
@@ -70,9 +68,10 @@ export function sortByDepth(dirs: string[]): string[] {
 
 /**
  * Walks up parent directories to find the nearest middleware.
- * Matches HonoX's middleware inheritance (lines 232-252).
+ * Returns undefined if no middleware is found or if the nearest
+ * one was already applied to an ancestor.
  */
-export function findInheritedMiddleware(
+export function findMiddlewareForDir(
   dir: string,
   middlewareMap: Map<string, string>,
   appliedDirs: Set<string>
