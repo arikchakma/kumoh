@@ -159,19 +159,16 @@ function wrapMiddleware(
 
 /**
  * Registers a route module on a Hono sub-app.
- * Matches HonoX route registration (lines 308-340).
  *
  * Supports:
- * 1. `export default new Hono()` — Hono sub-app
- * 2. `export const GET/POST/...` — named method handlers
- * 3. `export default [handler1, handler2]` — array handlers (GET)
- * 4. `export default (c) => ...` — function handler (GET)
+ * 1. `export const GET/POST/... = defineHandler(...)` — named method handlers
+ * 2. `export default new Hono()` — Hono sub-app
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function registerRoute(sub: any, path: string, mod: RouteModule): void {
   const defaultExport = mod.default;
 
-  // 1. Hono sub-app instance
+  // Hono sub-app instance
   if (
     defaultExport &&
     typeof defaultExport === 'object' &&
@@ -181,41 +178,41 @@ function registerRoute(sub: any, path: string, mod: RouteModule): void {
     return;
   }
 
-  // 2. Named method exports: export const GET = ...
+  // Named method exports: export const GET = defineHandler(...)
   for (const m of METHODS) {
     const handler = mod[m];
     if (handler) {
-      const h = Array.isArray(handler)
-        ? (handler as MiddlewareHandler[])
-        : [handler as MiddlewareHandler];
-      sub.on(m, path, ...h);
+      const h = Array.isArray(handler) ? handler : [handler];
+      sub.on(m, path, ...(h as MiddlewareHandler[]));
     }
-  }
-
-  // 3. Array default export: export default [handler1, handler2]
-  if (Array.isArray(defaultExport)) {
-    sub.get(path, ...(defaultExport as MiddlewareHandler[]));
-  }
-  // 4. Function default export (GET shorthand)
-  else if (typeof defaultExport === 'function' && !mod.GET) {
-    sub.get(path, defaultExport as MiddlewareHandler);
   }
 }
 
-/**
- * Creates a fully configured Cloudflare Worker from pre-imported modules.
- * Matches HonoX's `createApp()` pattern — all wiring at runtime.
- */
 export function defineWorker<E extends Env = Env>(
   options: DefineWorkerOptions<E>
 ): ExportedHandler {
   const app = new Hono();
   if (options.init) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (options.init as any)(app);
+    // @ts-expect-error - we don't know the type of the env
+    // before the init function is called
+    options.init(app);
   }
 
-  // --- Routes + Middleware ---
+  // Routes registration and middleware inheritance
+  // we group the routes by directory and apply the middleware
+  // it's group until we find a _middleware.ts file
+  // Example:
+  //
+  //     app/routes/
+  //      _middleware.ts           ← applies to ALL routes (logging, cors, etc.)
+  //      v1/
+  //        _middleware.ts          ← applies to /v1/* (auth)
+  //        howdy.ts                ← only the /v1/_middleware.ts is applied
+  //        $slug/
+  //          _middleware.ts
+  //          index.ts              ← only the /v1/$slug/_middleware.ts is applied
+  //
+  // we then mount the sub-app on the main app at the appropriate path
   if (options.routes) {
     const routesByDir = groupByDirectory(options.routes);
     const middlewareDirs = new Map(Object.entries(options.middleware ?? {}));
@@ -230,12 +227,23 @@ export function defineWorker<E extends Env = Env>(
     for (const dir of Object.keys(routesByDir)) {
       allDirs.add(dir);
     }
+
     for (const key of middlewareDirs.keys()) {
       const dir = key.replace(/\/?_middleware\.(ts|js)$/, '');
       allDirs.add(dir);
     }
 
-    // Process directories shallow→deep (HonoX pattern)
+    // Sort directories shallow → deep and process them
+    // we process the directories in order of depth
+    // so that the middleware is applied in the correct order
+    // and the routes are registered in the correct order
+    // Example:
+    //     /
+    //     /v1
+    //     /v1/users
+    //     /v1/users/$id
+    //     /v1/users/$id/index.ts
+    //     /v1/users/$id/index.ts
     for (const dir of sortDirectories([...allDirs])) {
       const sub = new Hono();
 
@@ -264,7 +272,6 @@ export function defineWorker<E extends Env = Env>(
         }
       }
 
-      // Register routes in this directory
       const dirRoutes = routesByDir[dir];
       if (dirRoutes) {
         for (const [filename, mod] of Object.entries(dirRoutes)) {
@@ -273,17 +280,20 @@ export function defineWorker<E extends Env = Env>(
         }
       }
 
-      // Mount sub-app on main app
       app.route(dirToMountPath(dir), sub);
     }
   }
 
-  // --- Build worker export ---
+  // The final worker export for Cloudflare Workers
+  // with the fetch method and the scheduled and queue methods
   const worker: ExportedHandler = {
     fetch: app.fetch,
   };
 
-  // Cron dispatch
+  // Handle the CRON jobs
+  // it will be called by the Cloudflare Workers runtime
+  // it's a map of scheduler functions by schedule string
+  // we automatically dispatch the cron job to the appropriate function
   if (options.crons && Object.keys(options.crons).length) {
     const cronMap = new Map<string, ExportedHandlerScheduledHandler>();
     for (const entry of Object.values(options.crons)) {
@@ -297,7 +307,9 @@ export function defineWorker<E extends Env = Env>(
     };
   }
 
-  // Queue dispatch
+  // Handle the QUEUE jobs
+  // it's a map of queue functions by queue name
+  // we automatically dispatch the queue job to the appropriate function
   if (options.queues && Object.keys(options.queues).length) {
     const queueMap = new Map(Object.entries(options.queues));
     worker.queue = async (batch, env, ctx) => {
