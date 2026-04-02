@@ -41,3 +41,17 @@ export const PATCH = defineHandler(
     return c.json(result[0]);
   }
 );
+
+export const DELETE = defineHandler(async (c) => {
+  const { id } = c.req.param();
+  const result = await db
+    .delete(schema.users)
+    .where(eq(schema.users.id, Number(id)))
+    .returning();
+
+  if (!result.length) {
+    return c.json({ error: `User not found: ${id}` }, 404);
+  }
+
+  return c.json({ deleted: true });
+});
