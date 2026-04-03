@@ -11,9 +11,9 @@ import { deleteEmailOptions, sendEmailOptions } from '~/mutations/email';
 import { emailsOptions } from '~/queries/email';
 
 const PREDEFINED_ADDRESSES = [
-  'contact@dev.kumo.ooo',
-  'hello@dev.kumo.ooo',
-  'support@dev.kumo.ooo',
+  'contact@kumo.ooo',
+  'hello@kumo.ooo',
+  'support@kumo.ooo',
 ] as const;
 
 export async function clientLoader() {
@@ -86,8 +86,8 @@ export default function Email() {
     <div className="space-y-6">
       <Section.Heading>Compose</Section.Heading>
       <p className="text-xs font-pixel text-text-dim italic">
-        Sends an email to a predefined @dev.kumo.ooo address via Cloudflare
-        Email. Email Routing captures it and saves it to D1.
+        Sends an email to a predefined @kumo.ooo address via Cloudflare Email.
+        Email Routing captures it and saves it to D1.
       </p>
       <form onSubmit={handleSend} className="space-y-2">
         <select
