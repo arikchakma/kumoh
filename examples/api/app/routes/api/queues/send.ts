@@ -4,12 +4,13 @@ import { queue } from 'kumoh/queue';
 import { z } from 'zod';
 
 const sendSchema = z.object({
-  queue: z.enum(['notifications', 'email']),
-  message: z.string().min(1),
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
 });
 
 export const POST = defineHandler(zValidator('json', sendSchema), async (c) => {
-  const { queue: queueName, message } = c.req.valid('json');
-  await queue[queueName].send({ message });
-  return c.json({ sent: true });
+  const { to, subject, body } = c.req.valid('json');
+  await queue.emails.send({ to, subject, body });
+  return c.json({ queued: true });
 });

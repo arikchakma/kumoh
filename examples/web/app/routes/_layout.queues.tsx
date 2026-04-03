@@ -13,6 +13,12 @@ import {
 } from '~/mutations/queues';
 import { queueResultsOptions } from '~/queries/queues';
 
+const PREDEFINED_ADDRESSES = [
+  'contact@kumo.ooo',
+  'hello@kumo.ooo',
+  'support@kumo.ooo',
+] as const;
+
 export async function clientLoader() {
   await queryClient.ensureQueryData(queueResultsOptions());
   return {};
@@ -24,10 +30,11 @@ export default function Queues() {
 
   const { data: results } = useSuspenseQuery(queueResultsOptions());
 
-  const [queueName, setQueueName] = useState<'notifications' | 'email'>(
-    'notifications'
+  const [to, setTo] = useState<(typeof PREDEFINED_ADDRESSES)[number]>(
+    PREDEFINED_ADDRESSES[0]
   );
-  const [message, setMessage] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
 
   const sendToQueue = useMutation({
     ...sendToQueueOptions(),
@@ -63,57 +70,73 @@ export default function Queues() {
 
   function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!message) {
+    if (!subject || !body) {
       return;
     }
-    sendToQueue.mutate({ json: { queue: queueName, message } });
-    setMessage('');
+    sendToQueue.mutate({ json: { to, subject, body } });
+    setSubject('');
+    setBody('');
   }
 
   return (
     <div className="space-y-6">
-      <Section.Heading>Send Message</Section.Heading>
-      <form onSubmit={handleSend} className="flex gap-2">
+      <Section.Heading>Send to Queue</Section.Heading>
+      <p className="text-xs font-pixel text-text-dim italic">
+        Enqueues an email to the emails queue. The consumer sends it via
+        Cloudflare Email and saves the result to D1.
+      </p>
+      <form onSubmit={handleSend} className="space-y-2">
         <select
-          value={queueName}
+          value={to}
           onChange={(e) =>
-            setQueueName(e.target.value as 'notifications' | 'email')
+            setTo(e.target.value as (typeof PREDEFINED_ADDRESSES)[number])
           }
           className="border border-border h-7 px-2 text-xs font-pixel"
         >
-          <option value="notifications">notifications</option>
-          <option value="email">email</option>
+          {PREDEFINED_ADDRESSES.map((addr) => (
+            <option key={addr} value={addr}>
+              {addr}
+            </option>
+          ))}
         </select>
         <input
           type="text"
-          placeholder="Message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
           required
-          className="border border-border h-7 px-2 text-xs font-pixel flex-1"
+          className="border border-border h-7 px-2 text-xs font-pixel w-full"
+        />
+        <textarea
+          placeholder="Body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          required
+          rows={3}
+          className="border border-border px-2 py-1.5 text-xs font-pixel w-full resize-none"
         />
         <button
           type="submit"
           disabled={sendToQueue.isPending}
           className="bg-ink text-white h-7 px-3 text-xs font-pixel hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
         >
-          Send to Queue
+          {sendToQueue.isPending ? 'Queueing...' : 'Send to Queue'}
         </button>
       </form>
 
       <Section.Heading>Processed Results ({results.length})</Section.Heading>
       <p className="text-xs font-pixel text-text-dim italic">
-        Messages consumed from the queue are written to D1 via the consumer.
+        Emails consumed from the queue and sent via Cloudflare Email.
       </p>
       <div className="border border-ink overflow-hidden">
         <table className="w-full text-[11px]">
           <thead>
             <tr className="border-b border-border bg-ink font-mono">
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Queue
+                To
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Message
+                Subject
               </th>
               <th className="text-left px-2.5 py-1.5 font-medium text-white">
                 Processed
@@ -134,10 +157,8 @@ export default function Queues() {
             ) : (
               results.map((r) => (
                 <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="px-2.5 py-1.5">
-                    <code>{r.queue}</code>
-                  </td>
-                  <td className="px-2.5 py-1.5">{r.message}</td>
+                  <td className="px-2.5 py-1.5 text-text-dim">{r.to}</td>
+                  <td className="px-2.5 py-1.5">{r.subject}</td>
                   <td className="px-2.5 py-1.5 text-text-dim whitespace-nowrap">
                     {new Date(r.processedAt).toLocaleString()}
                   </td>

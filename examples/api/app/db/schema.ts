@@ -22,16 +22,13 @@ export const visits = sqliteTable('visits', {
   path: text('path'),
 });
 
-export const sessions = sqliteTable('sessions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').references(() => users.id),
-  expiresAt: text('expires_at'),
-});
-
 export const queueResults = sqliteTable('queue_results', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   queue: text('queue').notNull(),
-  message: text('message').notNull(),
+  from: text('from').notNull(),
+  to: text('to').notNull(),
+  subject: text('subject').notNull(),
+  body: text('body'),
   processedAt: text('processed_at').notNull(),
 });
 

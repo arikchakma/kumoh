@@ -21,15 +21,11 @@ CREATE TABLE `objects` (
 CREATE TABLE `queue_results` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`queue` text NOT NULL,
-	`message` text NOT NULL,
+	`from` text NOT NULL,
+	`to` text NOT NULL,
+	`subject` text NOT NULL,
+	`body` text,
 	`processed_at` text NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE `sessions` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer,
-	`expires_at` text,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `users` (

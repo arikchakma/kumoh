@@ -128,7 +128,7 @@ export default function Email() {
             {sendEmail.isPending ? 'Sending...' : 'Send'}
           </button>
           {sendEmail.isSuccess && (
-            <span className="text-xs font-pixel text-text-dim">Sent!</span>
+            <span className="text-xs font-pixel text-text-dim">Queued!</span>
           )}
           {sendEmail.isError && (
             <span className="text-xs font-pixel text-red-500">
