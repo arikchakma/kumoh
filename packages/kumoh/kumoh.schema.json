@@ -8,6 +8,18 @@
       "type": "string",
       "description": "The application name. Used for the worker name and resource naming (e.g. D1 database, KV namespace, R2 bucket, queue)."
     },
+    "email": {
+      "type": "object",
+      "description": "Email Routing configuration — managed by `kumoh setup email`.",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "description": "The domain with Cloudflare Email Routing enabled (e.g. kumo.ooo)."
+        }
+      },
+      "required": ["domain"],
+      "additionalProperties": false
+    },
     "deploy": {
       "type": "object",
       "description": "Deploy state — auto-managed by `kumoh deploy`. Do not edit manually.",

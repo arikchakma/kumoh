@@ -1,6 +1,9 @@
 {
   "$schema": "./node_modules/kumoh/kumoh.schema.json",
   "name": "example-app",
+  "email": {
+    "domain": "kumo.ooo"
+  },
   "deploy": {
     "d1": "0c6f6fdd-b8fb-4819-8bc3-6d4ac2998c1d",
     "kv": "2c17dc6e47f94311ab512dd22724ef5a",

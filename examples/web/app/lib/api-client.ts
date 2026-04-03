@@ -1,3 +1,6 @@
 import { hcWithType } from '@acme/client';
 
-export const apiClient = hcWithType('http://localhost:5173');
+const baseUrl = import.meta.env.DEV
+  ? 'http://localhost:5173'
+  : 'https://api.kumoh.dev';
+export const apiClient = hcWithType(baseUrl);

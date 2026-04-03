@@ -12,7 +12,8 @@
     "db:migrate": "kumoh db migrate",
     "db:studio": "kumoh db studio",
     "destroy:local": "kumoh destroy",
-    "dev": "vp dev"
+    "dev": "vp dev",
+    "setup:email": "kumoh setup email"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",

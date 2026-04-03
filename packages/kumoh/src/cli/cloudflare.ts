@@ -21,7 +21,7 @@ export function requireApiToken(): string {
   return token;
 }
 
-export async function cfFetch<T>(
+export async function fetchWithCloudflareToken<T>(
   token: string,
   path: string,
   init?: RequestInit
@@ -48,13 +48,28 @@ export async function lookupZone(
   token: string,
   domain: string
 ): Promise<{ zoneId: string; accountId: string }> {
-  const zones = await cfFetch<Zone[]>(token, `/zones?name=${domain}`);
-  if (!zones.length) {
-    console.error(
-      `\n  Domain "${domain}" not found in your Cloudflare account.`
+  try {
+    const zones = await fetchWithCloudflareToken<Zone[]>(
+      token,
+      `/zones?name=${domain}`
     );
-    console.error('  Make sure the domain is added to Cloudflare.');
+
+    if (!zones.length) {
+      console.error(
+        `\n  Domain "${domain}" not found in your Cloudflare account.`
+      );
+      console.error('  Make sure the domain is added to Cloudflare');
+      console.error('  and the API token has Zone → Zone → Read permission.');
+      process.exit(1);
+    }
+
+    return { zoneId: zones[0].id, accountId: zones[0].account.id };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\n  Failed to look up zone: ${msg}`);
+    console.error('  Check that your CLOUDFLARE_API_TOKEN has:');
+    console.error('    • Zone → Zone → Read');
+    console.error('    • Zone → Email Routing Rules → Edit');
     process.exit(1);
   }
-  return { zoneId: zones[0].id, accountId: zones[0].account.id };
 }

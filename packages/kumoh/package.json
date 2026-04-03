@@ -57,7 +57,6 @@
     "build": "vp pack",
     "check": "vp check",
     "dev": "vp pack --watch",
-    "prepare": "vp config",
     "prepublishOnly": "vp run build",
     "release": "bumpp"
   },
