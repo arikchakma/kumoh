@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { access, mkdir, readdir, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import { migrationsDir, root, schemaPath } from './config.ts';
+import { root } from './config.ts';
 import { wrangler } from './wrangler.ts';
 
 export async function localDbPath(): Promise<string | null> {
@@ -72,13 +72,15 @@ export async function writeTempConfig(
 ): Promise<string> {
   await mkdir(resolve(root, '.kumoh'), { recursive: true });
   const tempPath = resolve(root, '.kumoh', 'drizzle.config.json');
+  // Use paths relative to CWD (project root) since drizzle-kit
+  // resolves relative paths against process.cwd(), not the config location.
   await writeFile(
     tempPath,
     JSON.stringify(
       {
         dialect: 'sqlite',
-        schema: schemaPath(),
-        out: migrationsDir(),
+        schema: './app/db/schema.ts',
+        out: './app/db/migrations',
         ...extra,
       },
       null,
