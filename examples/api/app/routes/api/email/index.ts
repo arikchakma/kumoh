@@ -6,9 +6,9 @@ import { build } from 'mime-kit';
 import { z } from 'zod';
 
 const PREDEFINED_ADDRESSES = [
-  'contact@kumo.ooo',
-  'hello@kumo.ooo',
-  'support@kumo.ooo',
+  'contact@dev.kumo.ooo',
+  'hello@dev.kumo.ooo',
+  'support@dev.kumo.ooo',
 ] as const;
 
 export const GET = defineHandler(async (c) => {
@@ -31,7 +31,7 @@ export const POST = defineHandler(zValidator('json', sendSchema), async (c) => {
   const { to, subject, body, replyTo } = c.req.valid('json');
 
   const rawMime = build({
-    from: 'noreply@kumo.ooo',
+    from: 'noreply@dev.kumo.ooo',
     to,
     subject,
     text: body,
@@ -47,7 +47,7 @@ export const POST = defineHandler(zValidator('json', sendSchema), async (c) => {
   });
 
   // @ts-ignore - EmailMessage is a Cloudflare global
-  const msg = new EmailMessage('noreply@kumo.ooo', to, stream);
+  const msg = new EmailMessage('noreply@dev.kumo.ooo', to, stream);
   await email.send(msg);
 
   return c.json({ ok: true });

@@ -11,9 +11,9 @@ import { deleteEmailOptions, sendEmailOptions } from '~/mutations/email';
 import { emailsOptions } from '~/queries/email';
 
 const PREDEFINED_ADDRESSES = [
-  'contact@kumo.ooo',
-  'hello@kumo.ooo',
-  'support@kumo.ooo',
+  'contact@dev.kumo.ooo',
+  'hello@dev.kumo.ooo',
+  'support@dev.kumo.ooo',
 ] as const;
 
 export async function clientLoader() {
@@ -30,7 +30,6 @@ export default function Email() {
   const [to, setTo] = useState<(typeof PREDEFINED_ADDRESSES)[number]>(
     PREDEFINED_ADDRESSES[0]
   );
-  const [replyTo, setReplyTo] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -77,44 +76,33 @@ export default function Email() {
         to,
         subject,
         body,
-        ...(replyTo ? { replyTo } : {}),
       },
     });
     setSubject('');
     setBody('');
-    setReplyTo('');
   }
 
   return (
     <div className="space-y-6">
       <Section.Heading>Compose</Section.Heading>
       <p className="text-xs font-pixel text-text-dim italic">
-        Sends an email to a predefined @kumo.ooo address via MailChannels. The
-        worker email handler captures it and saves it to D1.
+        Sends an email to a predefined @dev.kumo.ooo address via Cloudflare
+        Email. Email Routing captures it and saves it to D1.
       </p>
       <form onSubmit={handleSend} className="space-y-2">
-        <div className="flex gap-2">
-          <select
-            value={to}
-            onChange={(e) =>
-              setTo(e.target.value as (typeof PREDEFINED_ADDRESSES)[number])
-            }
-            className="border border-border h-7 px-2 text-xs font-pixel"
-          >
-            {PREDEFINED_ADDRESSES.map((addr) => (
-              <option key={addr} value={addr}>
-                {addr}
-              </option>
-            ))}
-          </select>
-          <input
-            type="email"
-            placeholder="Reply-To (optional)"
-            value={replyTo}
-            onChange={(e) => setReplyTo(e.target.value)}
-            className="border border-border h-7 px-2 text-xs font-pixel flex-1"
-          />
-        </div>
+        <select
+          value={to}
+          onChange={(e) =>
+            setTo(e.target.value as (typeof PREDEFINED_ADDRESSES)[number])
+          }
+          className="border border-border h-7 px-2 text-xs font-pixel"
+        >
+          {PREDEFINED_ADDRESSES.map((addr) => (
+            <option key={addr} value={addr}>
+              {addr}
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="Subject"
