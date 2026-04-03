@@ -96,9 +96,9 @@ function generateTypes(config: KumohConfig, root: string): void {
       'type ExtractQueueMessage<T> = T extends ExportedHandlerQueueHandler<any, infer M> ? M : unknown;',
       '',
       "declare module 'kumoh/queue' {",
-      '  export const queue: {',
+      '  interface KumohQueues {',
       props,
-      '  };',
+      '  }',
       '}'
     );
   }

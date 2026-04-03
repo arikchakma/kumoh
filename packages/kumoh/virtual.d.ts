@@ -51,7 +51,10 @@ declare module 'kumoh/storage' {
 }
 
 declare module 'kumoh/queue' {
-  export const queue: Record<string, Queue<any>>;
+  interface KumohQueues {
+    [key: string]: Queue<any>;
+  }
+  export const queue: KumohQueues;
   export function defineQueue<Message = unknown, Env = unknown>(
     handler: ExportedHandlerQueueHandler<Env, Message>
   ): ExportedHandlerQueueHandler<Env, Message>;
