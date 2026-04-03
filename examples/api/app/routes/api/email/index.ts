@@ -2,13 +2,12 @@ import { zValidator } from '@hono/zod-validator';
 import { defineHandler } from 'kumoh/app';
 import { db, desc, schema } from 'kumoh/db';
 import { email } from 'kumoh/email';
-import { build } from 'mime-kit';
 import { z } from 'zod';
 
 const PREDEFINED_ADDRESSES = [
-  'contact@dev.kumo.ooo',
-  'hello@dev.kumo.ooo',
-  'support@dev.kumo.ooo',
+  'contact@kumo.ooo',
+  'hello@kumo.ooo',
+  'support@kumo.ooo',
 ] as const;
 
 export const GET = defineHandler(async (c) => {
@@ -30,25 +29,13 @@ const sendSchema = z.object({
 export const POST = defineHandler(zValidator('json', sendSchema), async (c) => {
   const { to, subject, body, replyTo } = c.req.valid('json');
 
-  const rawMime = build({
-    from: 'noreply@dev.kumo.ooo',
+  await email.send({
+    from: 'noreply@kumo.ooo',
     to,
     subject,
     text: body,
     ...(replyTo ? { replyTo } : {}),
   });
-
-  const encoded = new TextEncoder().encode(rawMime);
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoded);
-      controller.close();
-    },
-  });
-
-  // @ts-ignore - EmailMessage is a Cloudflare global
-  const msg = new EmailMessage('noreply@dev.kumo.ooo', to, stream);
-  await email.send(msg);
 
   return c.json({ ok: true });
 });

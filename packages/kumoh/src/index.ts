@@ -83,7 +83,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     { binding: bindings.r2, bucket_name: `${name}-bucket` },
   ];
   workerConfig.ai = { binding: 'AI' };
-  workerConfig.send_email = [{ name: 'SEND_EMAIL', remote: true }];
+  workerConfig.send_email = [{ name: 'SEND_EMAIL' }];
 
   if (existsSync(queuesDir)) {
     const queues = scanQueues(root, queuesDir, name);
