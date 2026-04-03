@@ -13,6 +13,7 @@ export type DeployState = {
 
 export type KumohJson = {
   name?: string;
+  email?: { domain: string };
   deploy?: DeployState;
 };
 
