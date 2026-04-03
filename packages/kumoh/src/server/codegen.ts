@@ -15,7 +15,8 @@ export function generateWorkerEntry(
   serverEntry: string,
   routeGroups: ScannedRouteGroup[],
   crons: ScannedCron[],
-  queues: ScannedQueue[]
+  queues: ScannedQueue[],
+  emailEntry: string | null
 ): string {
   const lines: string[] = [];
 
@@ -67,6 +68,12 @@ export function generateWorkerEntry(
     queueEntries.push(`  "${queue.queueName}": ${handler}`);
   }
 
+  if (emailEntry) {
+    lines.push(
+      genImport(emailEntry, [{ name: 'default', as: 'emailHandler' }])
+    );
+  }
+
   lines.push('');
   lines.push('export default defineWorker({');
   lines.push('  init,');
@@ -93,6 +100,10 @@ export function generateWorkerEntry(
     lines.push('  queues: {');
     lines.push(queueEntries.join(',\n') + ',');
     lines.push('  },');
+  }
+
+  if (emailEntry) {
+    lines.push('  email: emailHandler,');
   }
 
   lines.push('});');

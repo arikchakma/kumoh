@@ -228,6 +228,17 @@ export function scanCrons(root: string, cronsDir: string): ScannedCron[] {
   return crons;
 }
 
+export function scanEmail(root: string): string | null {
+  const candidates = ['app/email.ts', 'app/email.js'];
+  for (const candidate of candidates) {
+    const abs = resolve(root, candidate);
+    if (existsSync(abs)) {
+      return abs;
+    }
+  }
+  return null;
+}
+
 function toCamelCase(str: string): string {
   return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }

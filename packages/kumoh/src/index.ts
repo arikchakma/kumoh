@@ -18,6 +18,7 @@ export type KumohConfig = {
 
 export { defineScheduled } from './factory/scheduled.ts';
 export { defineQueue } from './factory/queue.ts';
+export { defineEmail } from './factory/email-handler.ts';
 
 type KumohJson = {
   name?: string;
@@ -82,7 +83,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     { binding: bindings.r2, bucket_name: `${name}-bucket` },
   ];
   workerConfig.ai = { binding: 'AI' };
-  workerConfig.send_email = [{ name: 'EMAIL' }];
+  workerConfig.send_email = [{ name: 'EMAIL', remote: true }];
 
   if (existsSync(queuesDir)) {
     const queues = scanQueues(root, queuesDir, name);

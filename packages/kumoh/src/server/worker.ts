@@ -26,6 +26,7 @@ export type DefineWorkerOptions<E extends Env = Env> = {
   middleware?: Record<string, MiddlewareModule>;
   crons?: Record<string, CronEntry>;
   queues?: Record<string, ExportedHandlerQueueHandler>;
+  email?: EmailExportedHandler;
 };
 
 /**
@@ -257,6 +258,10 @@ export function defineWorker<E extends Env = Env>(
         await handler(batch, env, ctx);
       }
     };
+  }
+
+  if (options.email) {
+    worker.email = options.email;
   }
 
   return worker;

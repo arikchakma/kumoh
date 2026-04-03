@@ -3,5 +3,7 @@ export function generateEmailModule(): string {
 import { env } from "cloudflare:workers";
 
 export const email = env.EMAIL;
+
+export function defineEmail(handler) { return handler; }
 `;
 }

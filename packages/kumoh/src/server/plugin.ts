@@ -26,6 +26,7 @@ import {
   findServerEntry,
   groupRoutesByDirectory,
   scanCrons,
+  scanEmail,
   scanQueues,
 } from './scanner.ts';
 
@@ -135,6 +136,16 @@ function generateTypes(config: KumohConfig, root: string): void {
     '  export function defineMiddleware(',
     '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
     '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
+    '}'
+  );
+
+  sections.push(
+    '',
+    "declare module 'kumoh/email' {",
+    '  export const email: SendEmail;',
+    '  export function defineEmail<Env = unknown>(',
+    '    handler: EmailExportedHandler<Env>',
+    '  ): EmailExportedHandler<Env>;',
     '}'
   );
 
@@ -300,7 +311,14 @@ export function virtualModules(config: KumohConfig): Plugin {
           config.queuesDir!,
           config.appName ?? 'kumoh-app'
         );
-        return generateWorkerEntry(serverEntry, routeGroups, crons, queues);
+        const emailEntry = scanEmail(root);
+        return generateWorkerEntry(
+          serverEntry,
+          routeGroups,
+          crons,
+          queues,
+          emailEntry
+        );
       }
 
       return null;
