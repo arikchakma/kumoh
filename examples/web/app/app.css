@@ -49,3 +49,15 @@ select:focus {
   background: var(--color-ink-dim);
   color: var(--color-ink);
 }
+
+:root {
+  --sh-class: #d94a3b;
+  --sh-identifier: #1a222b;
+  --sh-sign: #8996a3;
+  --sh-property: #b74834;
+  --sh-entity: #9a6240;
+  --sh-jsxliterals: #c75a3a;
+  --sh-string: #a35528;
+  --sh-keyword: #f13f34;
+  --sh-comment: #a19595;
+}
