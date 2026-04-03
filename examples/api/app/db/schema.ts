@@ -1,4 +1,15 @@
-import { sqliteTable, text, integer } from 'kumoh/db';
+import { sql } from 'kumoh/db';
+import { integer, sqliteTable, text } from 'kumoh/db';
+
+export const defaultTimestamps = {
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+};
 
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -30,4 +41,15 @@ export const objects = sqliteTable('objects', {
   size: integer('size').notNull(),
   contentType: text('content_type').notNull(),
   uploadedAt: text('uploaded_at').notNull(),
+});
+
+export const emails = sqliteTable('emails', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  from: text('from').notNull(),
+  to: text('to').notNull(),
+  subject: text('subject').notNull().default(''),
+  text: text('text'),
+  html: text('html'),
+  raw: text('raw'),
+  ...defaultTimestamps,
 });

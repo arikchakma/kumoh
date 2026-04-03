@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Plug,
   Home,
+  Mail,
 } from 'lucide-react';
 import { Outlet } from 'react-router';
 
@@ -18,6 +19,7 @@ const nav = [
   { to: '/storage', label: 'Storage', icon: HardDrive },
   { to: '/cron', label: 'Cron', icon: Clock },
   { to: '/queues', label: 'Message Queues', icon: MessageSquare },
+  { to: '/email', label: 'Email', icon: Mail },
   { to: '/rpc', label: 'RPC Client', icon: Plug },
 ];
 

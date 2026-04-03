@@ -19,6 +19,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.9",
     "kumoh": "workspace:*",
+    "mime-kit": "^0.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

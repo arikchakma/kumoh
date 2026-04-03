@@ -69,6 +69,9 @@ declare module 'kumoh/ai' {
 
 declare module 'kumoh/email' {
   export const email: SendEmail;
+  export function defineEmail<Env = unknown>(
+    handler: EmailExportedHandler<Env>
+  ): EmailExportedHandler<Env>;
 }
 
 declare module 'kumoh/app' {

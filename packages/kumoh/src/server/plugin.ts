@@ -110,7 +110,7 @@ function generateTypes(config: KumohConfig, root: string): void {
   bindings.push('    KV: KVNamespace;');
   bindings.push('    BUCKET: R2Bucket;');
   bindings.push('    AI: Ai;');
-  bindings.push('    EMAIL: SendEmail;');
+  bindings.push('    SEND_EMAIL: SendEmail;');
   for (const q of queues) {
     bindings.push(
       `    ${q.binding}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
