@@ -37,8 +37,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/kumoh
       mime-kit:
-        specifier: ^0.0.1
-        version: 0.0.1
+        specifier: ^0.0.3
+        version: 0.0.3
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -3105,16 +3105,12 @@ packages:
     resolution: {integrity: sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==}
     engines: {node: '>= 0.6'}
 
-  mime-kit@0.0.1:
-    resolution: {integrity: sha512-yOhnNU8W6jKuFRjQAM6b5SNVb5G7AKQ7aAh3a3G86xAugLjr3uFbuRLo/NRJx7xaUbWX/yDD3bMyPb2X88B+Pw==}
+  mime-kit@0.0.3:
+    resolution: {integrity: sha512-n831lYi4A7tq299ZsJr9Vis8yIhq4ZLxTFZ0v7V1rn2+0kuIkz2ZGxfdBbIWBOUiKpulg6Tdwscyxm94E4hGVA==}
 
   mime-types@2.1.35:
     resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
     engines: {node: '>= 0.6'}
-
-  mime-types@3.0.2:
-    resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
-    engines: {node: '>=18'}
 
   mime@1.6.0:
     resolution: {integrity: sha512-x0Vn8spI+wuJ1O6S7gnbaQg8Pxh4NNHb7KSINmEWKiPE4RKOplvijn+NkmYmmRgP68mc70j2EbeTFRsrswaQeg==}
@@ -5866,19 +5862,14 @@ snapshots:
 
   mime-db@1.54.0: {}
 
-  mime-kit@0.0.1:
+  mime-kit@0.0.3:
     dependencies:
-      mime-types: 3.0.2
       mimetext: 3.0.28
       postal-mime: 2.7.4
 
   mime-types@2.1.35:
     dependencies:
       mime-db: 1.52.0
-
-  mime-types@3.0.2:
-    dependencies:
-      mime-db: 1.54.0
 
   mime@1.6.0: {}
 
