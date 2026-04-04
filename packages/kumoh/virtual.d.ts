@@ -88,3 +88,10 @@ declare module 'kumoh/app' {
     handler: (c: Context<E>, next: Next) => Response | Promise<Response | void>
   ): (c: Context<E>, next: Next) => Response | Promise<Response | void>;
 }
+
+declare module 'kumoh/rate-limit' {
+  interface KumohRateLimiters {
+    [key: string]: RateLimit;
+  }
+  export const rateLimit: KumohRateLimiters;
+}

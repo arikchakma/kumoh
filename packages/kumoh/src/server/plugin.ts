@@ -11,6 +11,7 @@ import {
   VIRTUAL_AI,
   VIRTUAL_EMAIL,
   VIRTUAL_APP,
+  VIRTUAL_RATE_LIMIT,
   VIRTUAL_ENTRY,
 } from '../constants.ts';
 import type { KumohConfig } from '../index.ts';
@@ -20,6 +21,7 @@ import { generateDbModule } from '../virtual/db.ts';
 import { generateEmailModule } from '../virtual/email.ts';
 import { generateKvModule } from '../virtual/kv.ts';
 import { generateQueueModule } from '../virtual/queue.ts';
+import { generateRateLimitModule } from '../virtual/rate-limit.ts';
 import { generateStorageModule } from '../virtual/storage.ts';
 import { generateWorkerEntry } from './codegen.ts';
 import {
@@ -52,6 +54,7 @@ function createGenerators(
         'export const defineHandler = createFactory().createHandlers;',
         'export function defineMiddleware(handler) { return handler; }',
       ].join('\n'),
+    [VIRTUAL_RATE_LIMIT]: () => generateRateLimitModule(config.rateLimiters),
   };
 }
 
@@ -111,6 +114,9 @@ function generateTypes(config: KumohConfig, root: string): void {
   bindings.push('    BUCKET: R2Bucket;');
   bindings.push('    AI: Ai;');
   bindings.push('    SEND_EMAIL: SendEmail;');
+  for (const l of config.rateLimiters) {
+    bindings.push(`    ${l.binding}: RateLimit;`);
+  }
   for (const q of queues) {
     bindings.push(
       `    ${q.binding}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
@@ -148,6 +154,21 @@ function generateTypes(config: KumohConfig, root: string): void {
     '  ): EmailExportedHandler<Env>;',
     '}'
   );
+
+  if (config.rateLimiters.length) {
+    const props = config.rateLimiters
+      .map((l) => `    ${l.camelName}: RateLimit;`)
+      .join('\n');
+
+    sections.push(
+      '',
+      "declare module 'kumoh/rate-limit' {",
+      '  interface KumohRateLimiters {',
+      props,
+      '  }',
+      '}'
+    );
+  }
 
   writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
 

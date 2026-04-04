@@ -7,6 +7,15 @@ import type { Plugin } from 'vite';
 import { virtualModules } from './server/plugin.ts';
 import { scanCrons, scanQueues } from './server/scanner.ts';
 
+export type KumohRateLimiter = {
+  name: string;
+  camelName: string;
+  binding: string;
+  limit: number;
+  period: number;
+  namespaceId: number;
+};
+
 export type KumohConfig = {
   appName: string;
   serverEntry: string;
@@ -14,6 +23,7 @@ export type KumohConfig = {
   cronsDir: string;
   queuesDir: string;
   schemaPath: string;
+  rateLimiters: KumohRateLimiter[];
 };
 
 export { defineScheduled } from './factory/scheduled.ts';
@@ -22,6 +32,11 @@ export { defineEmail } from './factory/email-handler.ts';
 
 type KumohJson = {
   name?: string;
+  rateLimiters?: Array<{
+    name: string;
+    limit: number;
+    period: number;
+  }>;
   deploy?: {
     d1?: string;
     kv?: string;
@@ -35,6 +50,14 @@ const bindings = {
   kv: 'KV',
   r2: 'BUCKET',
 } as const;
+
+function toCamelCase(str: string): string {
+  return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+function toUpperSnake(str: string): string {
+  return str.replace(/-/g, '_').toUpperCase();
+}
 
 function readConfig(root: string): KumohJson {
   const configPath = resolve(root, 'kumoh.json');
@@ -52,6 +75,14 @@ function resolveConfig(raw: KumohJson, root: string): KumohConfig {
     cronsDir: resolve(root, 'app/crons'),
     queuesDir: resolve(root, 'app/queues'),
     schemaPath: resolve(root, 'app/db/schema.ts'),
+    rateLimiters: (raw.rateLimiters ?? []).map((r, i) => ({
+      name: r.name,
+      camelName: toCamelCase(r.name),
+      binding: `RATE_LIMITER_${toUpperSnake(r.name)}`,
+      limit: r.limit,
+      period: r.period,
+      namespaceId: 1001 + i,
+    })),
   };
 }
 
@@ -103,6 +134,17 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     if (crons.length) {
       workerConfig.triggers = { crons: crons.map((c) => c.schedule) };
     }
+  }
+
+  const rateLimiters = (raw.rateLimiters ?? []).map((r, i) => ({
+    name: `RATE_LIMITER_${toUpperSnake(r.name)}`,
+    type: 'ratelimit',
+    namespace_id: String(1001 + i),
+    simple: { limit: r.limit, period: r.period },
+  }));
+
+  if (rateLimiters.length) {
+    workerConfig.unsafe = { bindings: rateLimiters };
   }
 
   if (raw.deploy?.domain) {
