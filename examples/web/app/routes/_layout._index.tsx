@@ -135,14 +135,13 @@ export const users = sqliteTable('users', {
     {
       name: 'server.ts',
       path: 'server.ts',
-      content: `import { defineApp } from 'kumoh/app';
+      content: `import { logger } from 'hono/logger';
+import { defineApp } from 'kumoh/app';
 
 export default defineApp((app) => {
-  app.use('*', async (c, next) => {
-    console.log(\`\${c.req.method} \${c.req.path}\`);
-    await next();
-  });
-});`,
+  app.use(logger());
+});
+`,
     },
     {
       name: 'email.ts',
@@ -254,7 +253,7 @@ export default function Home() {
         by voidzero.
       </p>
 
-      <div className="border border-ink flex overflow-hidden h-[400px]">
+      <div className="border border-ink flex overflow-hidden h-80">
         <div className="w-44 border-r border-border overflow-y-auto py-1.5 shrink-0 scrollbar-none">
           <TreeItem
             node={fileTree}
@@ -262,7 +261,7 @@ export default function Home() {
             onSelect={(path, content) => setSelected({ path, content })}
           />
         </div>
-        <div className="flex-1 overflow-auto bg-neutral-50 scrollbar-none flex flex-col">
+        <div className="flex-1 overflow-auto bg-neutral-50/10 scrollbar-none flex flex-col">
           <div className="px-3 py-1.5 border-b border-border text-[10px] font-mono text-text-dim shrink-0">
             {selected.path}
           </div>
