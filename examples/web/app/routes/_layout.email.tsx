@@ -140,83 +140,56 @@ export default function Email() {
 
       <Section.Heading>Inbox ({emails.length})</Section.Heading>
       <div className="border border-ink overflow-hidden">
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr className="border-b border-border bg-ink font-mono">
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                From
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                To
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Subject
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Received
-              </th>
-              <th className="px-2.5 py-1.5" />
-            </tr>
-          </thead>
-          <tbody className="font-pixel">
-            {emails.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-2.5 py-3 text-center text-text-dim"
+        {emails.length === 0 ? (
+          <p className="px-3 py-4 text-center text-text-dim text-[11px] font-pixel">
+            No emails yet
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {emails.map((entry) => (
+              <div key={entry.id}>
+                <div
+                  className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-neutral-50"
+                  onClick={() =>
+                    setExpandedId(expandedId === entry.id ? null : entry.id)
+                  }
                 >
-                  No emails yet
-                </td>
-              </tr>
-            ) : (
-              emails.map((entry) => (
-                <>
-                  <tr
-                    key={entry.id}
-                    className="border-b border-border last:border-0 cursor-pointer hover:bg-neutral-50"
-                    onClick={() =>
-                      setExpandedId(expandedId === entry.id ? null : entry.id)
-                    }
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-pixel font-semibold truncate">
+                        {entry.subject || '(no subject)'}
+                      </span>
+                      <span className="text-[10px] font-pixel text-text-dim whitespace-nowrap">
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-pixel text-text-dim mt-0.5 truncate">
+                      {entry.from} → {entry.to}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteEmail.mutate({
+                        param: { id: String(entry.id) },
+                      });
+                    }}
+                    className="text-text-dim hover:text-red-500 text-xs shrink-0 mt-0.5"
                   >
-                    <td className="px-2.5 py-1.5 text-text-dim">
-                      {entry.from}
-                    </td>
-                    <td className="px-2.5 py-1.5 text-text-dim">{entry.to}</td>
-                    <td className="px-2.5 py-1.5">{entry.subject}</td>
-                    <td className="px-2.5 py-1.5 text-text-dim whitespace-nowrap">
-                      {new Date(entry.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-2.5 py-1.5 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteEmail.mutate({
-                            param: { id: String(entry.id) },
-                          });
-                        }}
-                        className="text-text-dim hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedId === entry.id && (
-                    <tr
-                      key={`${entry.id}-body`}
-                      className="border-b border-border bg-neutral-50"
-                    >
-                      <td colSpan={5} className="px-2.5 py-3">
-                        <pre className="text-[11px] font-pixel whitespace-pre-wrap break-words text-text-dim">
-                          {entry.text ?? '(no plain text body)'}
-                        </pre>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))
-            )}
-          </tbody>
-        </table>
+                    ×
+                  </button>
+                </div>
+                {expandedId === entry.id && (
+                  <div className="p-3 bg-neutral-50">
+                    <pre className="text-[11px] font-pixel whitespace-pre-wrap break-words text-text-dim">
+                      {entry.text ?? '(no plain text body)'}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

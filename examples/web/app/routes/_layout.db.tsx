@@ -36,7 +36,13 @@ export default function DB() {
         }
         return [
           ...old,
-          { id: Date.now(), name: req.json.name, email: req.json.email },
+          {
+            id: Date.now(),
+            name: req.json.name,
+            email: req.json.email,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
         ];
       });
 

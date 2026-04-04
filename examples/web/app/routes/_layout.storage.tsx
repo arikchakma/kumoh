@@ -162,7 +162,7 @@ export default function Storage() {
                     {formatBytes(obj.size)}
                   </td>
                   <td className="px-2.5 py-1.5 text-text-dim">
-                    {new Date(obj.uploadedAt).toLocaleString()}
+                    {new Date(obj.createdAt).toLocaleString()}
                   </td>
                   <td className="px-2.5 py-1.5 text-right">
                     <button

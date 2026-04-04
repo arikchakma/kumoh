@@ -35,6 +35,7 @@ export default function Queues() {
   );
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const sendToQueue = useMutation({
     ...sendToQueueOptions(),
@@ -129,54 +130,54 @@ export default function Queues() {
         Emails consumed from the queue and sent via Cloudflare Email.
       </p>
       <div className="border border-ink overflow-hidden">
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr className="border-b border-border bg-ink font-mono">
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                To
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Subject
-              </th>
-              <th className="text-left px-2.5 py-1.5 font-medium text-white">
-                Processed
-              </th>
-              <th className="px-2.5 py-1.5" />
-            </tr>
-          </thead>
-          <tbody className="font-pixel">
-            {results.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-2.5 py-3 text-center text-text-dim"
+        {results.length === 0 ? (
+          <p className="px-3 py-4 text-center text-text-dim text-[11px] font-pixel">
+            No results yet
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {results.map((r) => (
+              <div key={r.id}>
+                <div
+                  className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-neutral-50"
+                  onClick={() =>
+                    setExpandedId(expandedId === r.id ? null : r.id)
+                  }
                 >
-                  No results yet
-                </td>
-              </tr>
-            ) : (
-              results.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="px-2.5 py-1.5 text-text-dim">{r.to}</td>
-                  <td className="px-2.5 py-1.5">{r.subject}</td>
-                  <td className="px-2.5 py-1.5 text-text-dim whitespace-nowrap">
-                    {new Date(r.processedAt).toLocaleString()}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-right">
-                    <button
-                      onClick={() =>
-                        deleteResult.mutate({ param: { id: String(r.id) } })
-                      }
-                      className="text-text-dim hover:text-red-500"
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-pixel font-semibold truncate">
+                        {r.subject}
+                      </span>
+                      <span className="text-[10px] font-pixel text-text-dim whitespace-nowrap">
+                        {new Date(r.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-pixel text-text-dim mt-0.5 truncate">
+                      {r.from} → {r.to}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteResult.mutate({ param: { id: String(r.id) } });
+                    }}
+                    className="text-text-dim hover:text-red-500 text-xs shrink-0 mt-0.5"
+                  >
+                    ×
+                  </button>
+                </div>
+                {expandedId === r.id && (
+                  <div className="p-3 bg-neutral-50">
+                    <pre className="text-[11px] font-pixel whitespace-pre-wrap break-words text-text-dim">
+                      {r.body ?? '(no body)'}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
