@@ -183,8 +183,19 @@ export const deploy = defineCommand({
     name: 'deploy',
     description: 'Build, provision, and deploy to Cloudflare',
   },
-  async run() {
-    await ensureLoggedIn();
+  args: {
+    ci: {
+      type: 'boolean',
+      default: false,
+      description: 'Non-interactive mode for CI environments',
+    },
+  },
+  async run(ctx) {
+    const ci = ctx.args.ci;
+
+    if (!ci) {
+      await ensureLoggedIn();
+    }
 
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
@@ -212,12 +223,16 @@ export const deploy = defineCommand({
         for (const b of stale) {
           console.log(`  ${b.queueName}`);
         }
-        for (const b of stale) {
-          const remove = await confirm(`Remove stale queue "${b.queueName}"?`);
-          if (remove) {
-            await removeQueueConsumer(b);
-            await deleteWorkerQueue(b);
-            log.ok(`Queue "${b.queueName}" — removed`);
+        if (!ci) {
+          for (const b of stale) {
+            const remove = await confirm(
+              `Remove stale queue "${b.queueName}"?`
+            );
+            if (remove) {
+              await removeQueueConsumer(b);
+              await deleteWorkerQueue(b);
+              log.ok(`Queue "${b.queueName}" — removed`);
+            }
           }
         }
       }
@@ -241,7 +256,7 @@ export const deploy = defineCommand({
     // Save provisioned IDs immediately so a re-run finds existing resources
     await persist();
 
-    if (!state.domain) {
+    if (!state.domain && !ci) {
       const wantsDomain = await confirm('Add a custom domain?');
       if (wantsDomain) {
         const domain = await prompt('Custom domain', 'api.example.com');
@@ -250,7 +265,7 @@ export const deploy = defineCommand({
           log.ok(`Custom domain "${domain}" — will be assigned`);
         }
       }
-    } else {
+    } else if (state.domain) {
       log.ok(`Custom domain "${state.domain}" — exists`);
     }
 
