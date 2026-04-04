@@ -4,7 +4,19 @@
   "email": {
     "domain": "kumo.ooo"
   },
-  "deploy": {
+  "rateLimiters": [
+    {
+      "name": "global",
+      "limit": 30,
+      "period": 60
+    },
+    {
+      "name": "authentication",
+      "limit": 60,
+      "period": 60
+    }
+  ],
+  "state": {
     "d1": "370161c3-fee8-4415-88de-33cc3a4070ec",
     "kv": "2b95b2123bc3447ca5baa6349b2892b4",
     "domain": "api.kumoh.dev",

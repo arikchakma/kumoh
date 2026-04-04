@@ -2,6 +2,8 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { defineApp } from 'kumoh/app';
 
+import { globalRateLimiter } from './middlewares/rate-limit';
+
 export default defineApp((app) => {
   app.use(logger());
   app.use(
@@ -13,4 +15,5 @@ export default defineApp((app) => {
       maxAge: 3600,
     })
   );
+  app.use(globalRateLimiter);
 });

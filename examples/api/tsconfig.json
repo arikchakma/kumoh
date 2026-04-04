@@ -1,3 +1,8 @@
 {
-  "extends": "kumoh/tsconfig"
+  "extends": "kumoh/tsconfig",
+  "compilerOptions": {
+    "paths": {
+      "~/*": ["./app/*"]
+    }
+  }
 }
