@@ -181,7 +181,7 @@ export default function Email() {
                 </div>
                 {expandedId === entry.id && (
                   <div className="p-3 bg-neutral-50">
-                    <pre className="text-[11px] font-pixel whitespace-pre-wrap break-words text-text-dim">
+                    <pre className="text-[11px] font-pixel whitespace-pre-wrap wrap-break-word text-text-dim">
                       {entry.text ?? '(no plain text body)'}
                     </pre>
                   </div>
