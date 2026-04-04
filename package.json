@@ -7,7 +7,8 @@
     "fmt:check": "vp fmt --check",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix --fix-suggestions --fix-dangerously",
-    "prepare": "vp config"
+    "prepare": "vp config",
+    "release": "vp run --filter kumoh release"
   },
   "devDependencies": {
     "vite-plus": "catalog:"

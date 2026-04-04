@@ -11,28 +11,28 @@
     "@acme/client": "workspace:*",
     "@react-router/node": "7.13.2",
     "@react-router/serve": "7.13.2",
-    "@tanstack/react-query": "^5.95.2",
-    "hono": "^4.12.9",
-    "isbot": "^5.1.36",
-    "lucide-react": "^0.511.0",
+    "@tanstack/react-query": "^5.96.2",
+    "hono": "^4.12.10",
+    "isbot": "^5.1.37",
+    "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router": "7.13.2",
     "sugar-high": "^1.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260401.1",
+    "@cloudflare/workers-types": "^4.20260404.1",
     "@react-router/dev": "7.13.2",
     "@react-router/fs-routes": "7.13.2",
     "@tailwindcss/vite": "^4.2.2",
-    "@types/node": "^22",
+    "@types/node": "^25.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.7",
-    "vite-tsconfig-paths": "^5.1.4"
+    "typescript": "^6.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

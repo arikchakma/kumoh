@@ -18,13 +18,13 @@
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.9",
+    "hono": "^4.12.10",
     "kumoh": "workspace:*",
     "mime-kit": "^0.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260401.1",
+    "@cloudflare/workers-types": "^4.20260404.1",
     "drizzle-kit": "^0.31.10",
     "typescript": "~6.0.2",
     "vite": "catalog:",

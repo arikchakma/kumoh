@@ -63,6 +63,30 @@ const templates = {
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
+   fmt: {
+    endOfLine: 'lf',
+    singleQuote: true,
+    tabWidth: 2,
+    trailingComma: 'es5',
+    printWidth: 80,
+    experimentalSortPackageJson: {
+      sortScripts: true,
+    },
+    sortImports: {},
+    ignorePatterns: ['dist/', 'node_modules/'],
+  },
+  lint: {
+    plugins: ['typescript', 'import'],
+    rules: {
+      'typescript/consistent-type-imports': 'error',
+      'import/consistent-type-specifier-style': ['error', 'prefer-top-level'],
+      curly: ['error', 'all'],
+    },
+    options: {
+      typeCheck: true,
+      typeAware: true,
+    },
+  },
   plugins: [kumoh()],
 });
 `,
@@ -145,7 +169,7 @@ dist
           kumoh: `^${version}`,
         },
         devDependencies: {
-          '@cloudflare/workers-types': '^4.20260401.1',
+          '@cloudflare/workers-types': '^4.20260404.1',
           'drizzle-kit': '^0.31.10',
           typescript: '^6.0.2',
           vite: 'npm:@voidzero-dev/vite-plus-core@latest',
@@ -259,7 +283,6 @@ export const init = defineCommand({
     if (!isGitRepo) {
       const shouldGit = await confirm('Initialize git repository?');
       if (shouldGit) {
-        // Chained so we bail early if git isn't installed or init fails
         const gitOk =
           (await execSilent('git init', dir)) === 0 &&
           (await execSilent('git checkout -b main', dir)) === 0 &&
