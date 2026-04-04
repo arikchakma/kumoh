@@ -1,8 +1,5 @@
 <div align="center">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="48" height="48">
-    <circle cx="16" cy="16" r="14" fill="#f13f34"/>
-  </svg>
-  
+  <img src="https://kumoh.dev/favicon.svg" alt="kumoh" width="48" height="48">
   <h2>kumoh</h2>
   <p align="center">
     <a href="https://github.com/arikchakma/kumoh/blob/main/license">
@@ -12,8 +9,9 @@
         <img src="https://img.shields.io/badge/%E2%9C%A8-Try%20Demo-0a0a0a.svg?style=flat&colorA=222222" alt="Try Demo" />
     </a>
   </p>
-  <p align="center">Opinionated framework for building APIs on Cloudflare Workers with a focus on simplicity and ease of use.</p>
 </div>
+
+<p align="center">Opinionated framework for building APIs on Cloudflare Workers with a focus on simplicity and ease of use.</p>
 
 kumoh is a batteries-included framework for building APIs on Cloudflare Workers. It handles the infrastructure so you can focus on the code file-based routing, auto-provisioned D1, KV, R2, Queues, and Email Routing & Sending, end-to-end typed RPC, and takes you to production in minutes.
 
