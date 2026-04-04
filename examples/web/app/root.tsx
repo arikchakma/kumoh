@@ -8,6 +8,7 @@ import {
   ScrollRestoration,
 } from 'react-router';
 
+import { DevTools } from '~/components/dev-tools';
 import { queryClient } from '~/lib/query-client';
 
 import type { Route } from './+types/root';
@@ -53,6 +54,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body className="antialiased">
         <QueryClientProvider client={queryClient}>
           {children}
+          {import.meta.env.DEV && <DevTools />}
         </QueryClientProvider>
         <ScrollRestoration />
         <Scripts />
