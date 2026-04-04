@@ -50,6 +50,33 @@ select:focus {
   color: var(--color-ink);
 }
 
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-dim);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  overscroll-behavior: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   --sh-class: #d94a3b;
   --sh-identifier: #1a222b;
