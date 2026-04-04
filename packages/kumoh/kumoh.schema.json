@@ -36,6 +36,10 @@
           "type": "string",
           "description": "Deployed worker URL."
         },
+        "domain": {
+          "type": "string",
+          "description": "Custom domain assigned to the worker (e.g. api.example.com). Set during deploy."
+        },
         "migrations": {
           "type": "array",
           "items": { "type": "string" },

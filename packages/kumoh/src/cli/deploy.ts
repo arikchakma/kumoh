@@ -9,6 +9,7 @@ import { scanQueues } from '../server/scanner.ts';
 import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
+import { confirm, prompt } from './prompt.ts';
 import { ensureLoggedIn, wrangler, wranglerExec } from './wrangler.ts';
 
 function parseJson<T>(raw: string, context: string): T {
@@ -112,6 +113,10 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
     (config.kv_namespaces as Array<Record<string, unknown>>)[0].id = state.kv;
   }
 
+  if (state.domain) {
+    config.custom_domains = [state.domain];
+  }
+
   await writeFile(wranglerPath, JSON.stringify(config, null, 2));
 }
 
@@ -178,6 +183,7 @@ export const deploy = defineCommand({
       d1: config.deploy?.d1,
       kv: config.deploy?.kv,
       url: config.deploy?.url,
+      domain: config.deploy?.domain,
       migrations: config.deploy?.migrations ?? [],
     };
 
@@ -192,6 +198,19 @@ export const deploy = defineCommand({
     await provisionR2(`${appName}-bucket`);
     if (scanQueues('.', 'app/queues', appName).length) {
       await provisionQueue(`${appName}-queue`);
+    }
+
+    if (!state.domain) {
+      const wantsDomain = await confirm('Add a custom domain?');
+      if (wantsDomain) {
+        const domain = await prompt('Custom domain', 'api.example.com');
+        if (domain && domain !== 'api.example.com') {
+          state.domain = domain;
+          log.ok(`Custom domain "${domain}" — will be assigned`);
+        }
+      }
+    } else {
+      log.ok(`Custom domain "${state.domain}" — exists`);
     }
 
     await patchWranglerConfig(state);

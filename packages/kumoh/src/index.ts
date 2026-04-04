@@ -26,6 +26,7 @@ type KumohJson = {
     d1?: string;
     kv?: string;
     url?: string;
+    domain?: string;
     migrations?: string[];
   };
 };
@@ -103,6 +104,10 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     if (crons.length) {
       workerConfig.triggers = { crons: crons.map((c) => c.schedule) };
     }
+  }
+
+  if (raw.deploy?.domain) {
+    workerConfig.custom_domains = [raw.deploy.domain];
   }
 
   return workerConfig;
