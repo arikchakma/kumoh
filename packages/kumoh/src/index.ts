@@ -106,7 +106,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
   }
 
   if (raw.deploy?.domain) {
-    workerConfig.custom_domains = [raw.deploy.domain];
+    workerConfig.routes = [{ pattern: raw.deploy.domain, custom_domain: true }];
   }
 
   return workerConfig;

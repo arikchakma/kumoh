@@ -121,7 +121,7 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
   }
 
   if (state.domain) {
-    config.custom_domains = [state.domain];
+    config.routes = [{ pattern: state.domain, custom_domain: true }];
   }
 
   await writeFile(wranglerPath, JSON.stringify(config, null, 2));
@@ -129,7 +129,8 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
 
 async function applyMigrations(
   config: KumohJson,
-  state: DeployState
+  state: DeployState,
+  persist: () => Promise<void>
 ): Promise<void> {
   const dir = migrationsDir();
   const journalPath = join(dir, 'meta', '_journal.json');
@@ -158,6 +159,7 @@ async function applyMigrations(
     const sqlFile = join(dir, `${entry.tag}.sql`);
     await wrangler(`d1 execute ${dbName} --remote --file=${sqlFile}`);
     state.migrations.push(entry.tag);
+    await persist();
     log.ok(`${entry.tag}.sql`);
   }
 }
@@ -221,15 +223,23 @@ export const deploy = defineCommand({
       }
     }
 
+    const persist = async () => {
+      config.deploy = state;
+      await saveConfig(config);
+    };
+
     log.step('Provisioning resources...');
     if (existsSync('app/db/schema.ts')) {
       await provisionD1(`${appName}-db`, state);
     }
     await provisionKV(`${appName}-kv`, state);
     await provisionR2(`${appName}-bucket`);
-    if (scanQueues(root, 'app/queues', appName).length) {
-      await provisionQueue(`${appName}-queue`);
+    for (const q of scanQueues(root, 'app/queues', appName)) {
+      await provisionQueue(q.queueName);
     }
+
+    // Save provisioned IDs immediately so a re-run finds existing resources
+    await persist();
 
     if (!state.domain) {
       const wantsDomain = await confirm('Add a custom domain?');
@@ -248,14 +258,13 @@ export const deploy = defineCommand({
 
     if (existsSync('app/db/schema.ts')) {
       log.step('Applying migrations...');
-      await applyMigrations(config, state);
+      await applyMigrations(config, state, persist);
     }
 
     log.step('Deploying worker...');
     await wranglerExec('deploy --config dist/wrangler.json');
 
-    config.deploy = state;
-    await saveConfig(config);
+    await persist();
 
     log.done(
       state.domain
