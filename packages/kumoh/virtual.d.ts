@@ -90,8 +90,6 @@ declare module 'kumoh/app' {
 }
 
 declare module 'kumoh/rate-limit' {
-  interface KumohRateLimiters {
-    [key: string]: RateLimit;
-  }
+  interface KumohRateLimiters {}
   export const rateLimit: KumohRateLimiters;
 }

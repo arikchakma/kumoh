@@ -24,7 +24,8 @@
           },
           "period": {
             "type": "number",
-            "description": "Time window in seconds."
+            "description": "Time window in seconds. Must be 10 or 60.",
+            "enum": [10, 60]
           }
         },
         "required": ["name", "limit", "period"],

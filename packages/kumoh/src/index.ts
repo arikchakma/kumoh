@@ -12,7 +12,7 @@ export type KumohRateLimiter = {
   camelName: string;
   binding: string;
   limit: number;
-  period: number;
+  period: 10 | 60;
   namespaceId: number;
 };
 
@@ -35,7 +35,7 @@ type KumohJson = {
   rateLimiters?: Array<{
     name: string;
     limit: number;
-    period: number;
+    period: 10 | 60;
   }>;
   state?: {
     d1?: string;
