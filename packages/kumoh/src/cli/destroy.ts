@@ -3,11 +3,35 @@ import { resolve } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { scanQueues } from '../server/scanner.ts';
 import { loadConfig, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirm, confirmWithInput } from './prompt.ts';
-import { wrangler } from './wrangler.ts';
+import {
+  ensureLoggedIn,
+  getWorkerQueueConsumers,
+  removeQueueConsumer,
+  wrangler,
+} from './wrangler.ts';
+
+function extractError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const match = msg.match(/\[ERROR\]\s+(.+?)(?:\n|$)/);
+  if (match) {
+    return match[1].trim();
+  }
+  return (
+    msg.split('\n').find((l) => {
+      const t = l.trim();
+      return (
+        t &&
+        !t.startsWith('⛅') &&
+        !t.startsWith('─') &&
+        !t.startsWith('🪵') &&
+        !t.startsWith('✘')
+      );
+    }) ?? msg.split('\n')[0].trim()
+  );
+}
 
 async function tryDelete(
   label: string,
@@ -16,8 +40,8 @@ async function tryDelete(
   try {
     await fn();
     log.ok(`${label} — deleted`);
-  } catch {
-    log.warn(`${label} — not found or already deleted`);
+  } catch (err) {
+    log.warn(`${label} — ${extractError(err)}`);
   }
 }
 
@@ -53,6 +77,8 @@ export const destroy = defineCommand({
       return;
     }
 
+    await ensureLoggedIn();
+
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
     const deploy = config.deploy;
@@ -62,12 +88,12 @@ export const destroy = defineCommand({
       process.exit(1);
     }
 
+    // Fetch live queue consumer bindings from Cloudflare
+    const boundQueues = await getWorkerQueueConsumers(appName);
+
     console.log(
       `\nThis will permanently delete all resources for "${appName}":`
     );
-    if (deploy.url) {
-      console.log(`  Worker:  ${deploy.url}`);
-    }
     if (deploy.d1) {
       console.log(`  D1:      ${appName}-db (${deploy.d1.slice(0, 8)}…)`);
     }
@@ -75,8 +101,8 @@ export const destroy = defineCommand({
       console.log(`  KV:      ${appName}-kv (${deploy.kv.slice(0, 8)}…)`);
     }
     console.log(`  R2:      ${appName}-bucket`);
-    if (scanQueues('.', 'app/queues', appName).length) {
-      console.log(`  Queue:   ${appName}-queue`);
+    for (const q of boundQueues) {
+      console.log(`  Queue:   ${q}`);
     }
 
     const confirmed = await confirmWithInput(
@@ -90,15 +116,20 @@ export const destroy = defineCommand({
 
     log.step('Destroying resources...');
 
+    // Must remove consumer bindings before deleting either the worker or the queue
+    for (const q of boundQueues) {
+      await tryDelete(`Queue consumer "${q}"`, () =>
+        removeQueueConsumer(q, appName)
+      );
+    }
+
+    for (const q of boundQueues) {
+      await tryDelete(`Queue "${q}"`, () => wrangler(`queues delete ${q}`));
+    }
+
     await tryDelete(`Worker "${appName}"`, () =>
       wrangler(`delete --name ${appName} --force`)
     );
-
-    if (scanQueues('.', 'app/queues', appName).length) {
-      await tryDelete(`Queue "${appName}-queue"`, () =>
-        wrangler(`queues delete ${appName}-queue`)
-      );
-    }
 
     await tryDelete(`R2 bucket "${appName}-bucket"`, () =>
       wrangler(`r2 bucket delete ${appName}-bucket`)

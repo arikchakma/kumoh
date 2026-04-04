@@ -29,8 +29,8 @@ export const status = defineCommand({
       return;
     }
 
-    if (deploy.url) {
-      row('URL', deploy.url);
+    if (deploy.domain) {
+      row('URL', `https://${deploy.domain}`);
     }
 
     if (deploy.d1) {

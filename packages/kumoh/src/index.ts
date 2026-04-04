@@ -25,7 +25,6 @@ type KumohJson = {
   deploy?: {
     d1?: string;
     kv?: string;
-    url?: string;
     domain?: string;
     migrations?: string[];
   };

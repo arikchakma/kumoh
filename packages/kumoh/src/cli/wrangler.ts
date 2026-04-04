@@ -116,6 +116,77 @@ export async function wrangler(args: string): Promise<string> {
   });
 }
 
+// Parse queue names from wrangler's ASCII table output:
+// │ <id> │ <name> │ ...
+function parseQueueNames(output: string): string[] {
+  return output
+    .split('\n')
+    .filter((l) => l.includes('│'))
+    .map((l) =>
+      l
+        .split('│')
+        .map((c) => c.trim())
+        .filter(Boolean)
+    )
+    .filter((cols) => cols.length >= 2 && cols[0] !== 'id')
+    .map((cols) => cols[1])
+    .filter(Boolean);
+}
+
+// Check if a worker is a consumer of a queue via `wrangler queues info`
+// Output contains: "Consumers: worker:<name>" when bound
+async function isWorkerConsumer(
+  queueName: string,
+  workerName: string
+): Promise<boolean> {
+  try {
+    const info = await wrangler(`queues info ${queueName}`);
+    const consumersLine = info
+      .split('\n')
+      .find((l) => l.trim().startsWith('Consumers:'));
+    return consumersLine?.includes(`worker:${workerName}`) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+export async function getWorkerQueueConsumers(
+  workerName: string
+): Promise<string[]> {
+  let listOutput: string;
+  try {
+    listOutput = await wrangler('queues list');
+  } catch {
+    return [];
+  }
+
+  const queueNames = parseQueueNames(listOutput);
+  const bound: string[] = [];
+
+  for (const name of queueNames) {
+    if (await isWorkerConsumer(name, workerName)) {
+      bound.push(name);
+    }
+  }
+
+  return bound;
+}
+
+export async function removeQueueConsumer(
+  queueName: string,
+  workerName: string
+): Promise<void> {
+  await wrangler(`queues consumer remove ${queueName} ${workerName}`);
+
+  // Verify the consumer is actually gone
+  const stillBound = await isWorkerConsumer(queueName, workerName);
+  if (stillBound) {
+    throw new Error(
+      `Consumer "${workerName}" is still bound to "${queueName}" after removal`
+    );
+  }
+}
+
 export async function wranglerExec(args: string): Promise<string> {
   const bin = resolveBin();
   return new Promise((resolve, reject) => {

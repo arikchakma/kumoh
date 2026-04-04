@@ -10,7 +10,13 @@ import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirm, prompt } from './prompt.ts';
-import { ensureLoggedIn, wrangler, wranglerExec } from './wrangler.ts';
+import {
+  ensureLoggedIn,
+  getWorkerQueueConsumers,
+  removeQueueConsumer,
+  wrangler,
+  wranglerExec,
+} from './wrangler.ts';
 
 function parseJson<T>(raw: string, context: string): T {
   try {
@@ -182,7 +188,6 @@ export const deploy = defineCommand({
     const state: DeployState = {
       d1: config.deploy?.d1,
       kv: config.deploy?.kv,
-      url: config.deploy?.url,
       domain: config.deploy?.domain,
       migrations: config.deploy?.migrations ?? [],
     };
@@ -190,13 +195,38 @@ export const deploy = defineCommand({
     log.step('Building...');
     await build();
 
+    // On re-deploys, check for stale queue bindings that no longer exist locally
+    const isRedeploy = !!(state.d1 || state.kv);
+    if (isRedeploy) {
+      const liveQueues = await getWorkerQueueConsumers(appName);
+      const localQueues = new Set(
+        scanQueues(root, 'app/queues', appName).map((q) => q.queueName)
+      );
+      const stale = liveQueues.filter((q) => !localQueues.has(q));
+
+      if (stale.length) {
+        log.step('Stale queue bindings found:');
+        for (const q of stale) {
+          console.log(`  ${q}`);
+        }
+        for (const q of stale) {
+          const remove = await confirm(`Remove stale queue "${q}"?`);
+          if (remove) {
+            await removeQueueConsumer(q, appName);
+            await wrangler(`queues delete ${q}`);
+            log.ok(`Queue "${q}" — removed`);
+          }
+        }
+      }
+    }
+
     log.step('Provisioning resources...');
     if (existsSync('app/db/schema.ts')) {
       await provisionD1(`${appName}-db`, state);
     }
     await provisionKV(`${appName}-kv`, state);
     await provisionR2(`${appName}-bucket`);
-    if (scanQueues('.', 'app/queues', appName).length) {
+    if (scanQueues(root, 'app/queues', appName).length) {
       await provisionQueue(`${appName}-queue`);
     }
 
@@ -221,17 +251,16 @@ export const deploy = defineCommand({
     }
 
     log.step('Deploying worker...');
-    const output = await wranglerExec('deploy --config dist/wrangler.json');
-
-    const urlMatch = output.match(/https:\/\/[^\s]+\.workers\.dev/);
-    if (urlMatch) {
-      state.url = urlMatch[0];
-    }
+    await wranglerExec('deploy --config dist/wrangler.json');
 
     config.deploy = state;
     await saveConfig(config);
 
-    log.done(`Deployed to ${state.url ?? 'Cloudflare Workers'}`);
+    log.done(
+      state.domain
+        ? `Deployed to https://${state.domain}`
+        : 'Deployed to Cloudflare Workers'
+    );
     console.log('');
   },
 });

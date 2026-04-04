@@ -7,7 +7,6 @@ export const configPath = resolve(root, 'kumoh.json');
 export type DeployState = {
   d1?: string;
   kv?: string;
-  url?: string;
   domain?: string;
   migrations: string[];
 };
