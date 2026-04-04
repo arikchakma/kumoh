@@ -7,6 +7,7 @@ import {
   Plug,
   Home,
   Mail,
+  Shield,
 } from 'lucide-react';
 import { Outlet } from 'react-router';
 
@@ -21,6 +22,7 @@ const nav = [
   { to: '/queues', label: 'Message Queues', icon: MessageSquare },
   { to: '/email', label: 'Email', icon: Mail },
   { to: '/rpc', label: 'RPC Client', icon: Plug },
+  { to: '/rate-limit', label: 'Rate Limit', icon: Shield },
 ];
 
 export default function Layout() {
