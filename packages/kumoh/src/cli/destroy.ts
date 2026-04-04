@@ -7,6 +7,7 @@ import { loadConfig, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirm, confirmWithInput } from './prompt.ts';
 import {
+  deleteWorkerQueue,
   ensureLoggedIn,
   getWorkerQueueConsumers,
   removeQueueConsumer,
@@ -101,8 +102,8 @@ export const destroy = defineCommand({
       console.log(`  KV:      ${appName}-kv (${deploy.kv.slice(0, 8)}…)`);
     }
     console.log(`  R2:      ${appName}-bucket`);
-    for (const q of boundQueues) {
-      console.log(`  Queue:   ${q}`);
+    for (const b of boundQueues) {
+      console.log(`  Queue:   ${b.queueName}`);
     }
 
     const confirmed = await confirmWithInput(
@@ -117,14 +118,14 @@ export const destroy = defineCommand({
     log.step('Destroying resources...');
 
     // Must remove consumer bindings before deleting either the worker or the queue
-    for (const q of boundQueues) {
-      await tryDelete(`Queue consumer "${q}"`, () =>
-        removeQueueConsumer(q, appName)
+    for (const b of boundQueues) {
+      await tryDelete(`Queue consumer "${b.queueName}"`, () =>
+        removeQueueConsumer(b)
       );
     }
 
-    for (const q of boundQueues) {
-      await tryDelete(`Queue "${q}"`, () => wrangler(`queues delete ${q}`));
+    for (const b of boundQueues) {
+      await tryDelete(`Queue "${b.queueName}"`, () => deleteWorkerQueue(b));
     }
 
     await tryDelete(`Worker "${appName}"`, () =>

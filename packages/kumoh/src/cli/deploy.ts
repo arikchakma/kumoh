@@ -11,6 +11,7 @@ import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirm, prompt } from './prompt.ts';
 import {
+  deleteWorkerQueue,
   ensureLoggedIn,
   getWorkerQueueConsumers,
   removeQueueConsumer,
@@ -198,23 +199,23 @@ export const deploy = defineCommand({
     // On re-deploys, check for stale queue bindings that no longer exist locally
     const isRedeploy = !!(state.d1 || state.kv);
     if (isRedeploy) {
-      const liveQueues = await getWorkerQueueConsumers(appName);
+      const liveBindings = await getWorkerQueueConsumers(appName);
       const localQueues = new Set(
         scanQueues(root, 'app/queues', appName).map((q) => q.queueName)
       );
-      const stale = liveQueues.filter((q) => !localQueues.has(q));
+      const stale = liveBindings.filter((b) => !localQueues.has(b.queueName));
 
       if (stale.length) {
         log.step('Stale queue bindings found:');
-        for (const q of stale) {
-          console.log(`  ${q}`);
+        for (const b of stale) {
+          console.log(`  ${b.queueName}`);
         }
-        for (const q of stale) {
-          const remove = await confirm(`Remove stale queue "${q}"?`);
+        for (const b of stale) {
+          const remove = await confirm(`Remove stale queue "${b.queueName}"?`);
           if (remove) {
-            await removeQueueConsumer(q, appName);
-            await wrangler(`queues delete ${q}`);
-            log.ok(`Queue "${q}" — removed`);
+            await removeQueueConsumer(b);
+            await deleteWorkerQueue(b);
+            log.ok(`Queue "${b.queueName}" — removed`);
           }
         }
       }
