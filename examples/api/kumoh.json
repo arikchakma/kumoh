@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/kumoh/kumoh.schema.json",
-  "name": "example-app",
+  "name": "kumoh-api",
   "email": {
     "domain": "kumo.ooo"
+  },
+  "deploy": {
+    "domain": "api.kumoh.dev"
   }
 }
