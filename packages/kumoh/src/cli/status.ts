@@ -20,7 +20,7 @@ export const status = defineCommand({
   async run() {
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
-    const deploy = config.deploy;
+    const deploy = config.state;
 
     console.log(`\n${appName}`);
 

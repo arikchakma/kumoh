@@ -43,9 +43,9 @@
       "required": ["domain"],
       "additionalProperties": false
     },
-    "deploy": {
+    "state": {
       "type": "object",
-      "description": "Deploy state — auto-managed by `kumoh deploy`. Do not edit manually.",
+      "description": "Provisioned resource state — auto-managed by `kumoh deploy`. Do not edit manually.",
       "properties": {
         "d1": {
           "type": "string",

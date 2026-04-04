@@ -37,7 +37,7 @@ type KumohJson = {
     limit: number;
     period: number;
   }>;
-  deploy?: {
+  state?: {
     d1?: string;
     kv?: string;
     domain?: string;
@@ -147,8 +147,8 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     workerConfig.unsafe = { bindings: rateLimiters };
   }
 
-  if (raw.deploy?.domain) {
-    workerConfig.routes = [{ pattern: raw.deploy.domain, custom_domain: true }];
+  if (raw.state?.domain) {
+    workerConfig.routes = [{ pattern: raw.state.domain, custom_domain: true }];
   }
 
   return workerConfig;

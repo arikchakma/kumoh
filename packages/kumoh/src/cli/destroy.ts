@@ -82,10 +82,10 @@ export const destroy = defineCommand({
 
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
-    const deploy = config.deploy;
+    const deploy = config.state;
 
     if (!deploy) {
-      console.error('No deploy state found in kumoh.json. Nothing to destroy.');
+      console.error('No state found in kumoh.json. Nothing to destroy.');
       process.exit(1);
     }
 
@@ -148,7 +148,7 @@ export const destroy = defineCommand({
       );
     }
 
-    delete config.deploy;
+    delete config.state;
     await saveConfig(config);
 
     log.done('All resources destroyed');

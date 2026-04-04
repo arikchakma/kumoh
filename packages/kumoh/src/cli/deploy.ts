@@ -200,10 +200,10 @@ export const deploy = defineCommand({
     const config = await loadConfig();
     const appName = config.name ?? 'kumoh-app';
     const state: DeployState = {
-      d1: config.deploy?.d1,
-      kv: config.deploy?.kv,
-      domain: config.deploy?.domain,
-      migrations: config.deploy?.migrations ?? [],
+      d1: config.state?.d1,
+      kv: config.state?.kv,
+      domain: config.state?.domain,
+      migrations: config.state?.migrations ?? [],
     };
 
     log.step('Building...');
@@ -239,7 +239,7 @@ export const deploy = defineCommand({
     }
 
     const persist = async () => {
-      config.deploy = state;
+      config.state = state;
       await saveConfig(config);
     };
 

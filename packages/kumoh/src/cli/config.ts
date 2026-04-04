@@ -14,7 +14,7 @@ export type DeployState = {
 export type KumohJson = {
   name?: string;
   email?: { domain: string };
-  deploy?: DeployState;
+  state?: DeployState;
 };
 
 export type MigrationJournal = {
