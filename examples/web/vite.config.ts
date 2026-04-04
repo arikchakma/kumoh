@@ -2,8 +2,8 @@ import path from 'node:path';
 
 import { reactRouter } from '@react-router/dev/vite';
 import tailwindcss from '@tailwindcss/vite';
+import type { Plugin } from 'vite-plus';
 import { defineConfig } from 'vite-plus';
-// import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   resolve: {
@@ -11,5 +11,5 @@ export default defineConfig({
       '~': path.resolve(__dirname, 'app'),
     },
   },
-  plugins: [tailwindcss(), reactRouter()],
+  plugins: [tailwindcss(), reactRouter() as Plugin[]],
 });
