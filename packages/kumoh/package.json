@@ -1,6 +1,6 @@
 {
   "name": "kumoh",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Opinionated framework for building Cloudflare Workers",
   "bin": {
     "kumoh": "dist/cli.mjs"
