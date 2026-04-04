@@ -20,7 +20,6 @@ export default defineQueue<OutboundEmail>(async (batch) => {
         to,
         subject,
         body,
-        processedAt: new Date().toISOString(),
       });
 
       msg.ack();

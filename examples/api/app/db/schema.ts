@@ -15,11 +15,13 @@ export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   email: text('email').notNull(),
+  ...defaultTimestamps,
 });
 
 export const visits = sqliteTable('visits', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   path: text('path'),
+  ...defaultTimestamps,
 });
 
 export const queueResults = sqliteTable('queue_results', {
@@ -29,7 +31,7 @@ export const queueResults = sqliteTable('queue_results', {
   to: text('to').notNull(),
   subject: text('subject').notNull(),
   body: text('body'),
-  processedAt: text('processed_at').notNull(),
+  ...defaultTimestamps,
 });
 
 export const objects = sqliteTable('objects', {
@@ -37,7 +39,7 @@ export const objects = sqliteTable('objects', {
   key: text('key').notNull(),
   size: integer('size').notNull(),
   contentType: text('content_type').notNull(),
-  uploadedAt: text('uploaded_at').notNull(),
+  ...defaultTimestamps,
 });
 
 export const emails = sqliteTable('emails', {

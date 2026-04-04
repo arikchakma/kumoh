@@ -1,5 +1,6 @@
+import { logger } from 'hono/logger';
 import { defineApp } from 'kumoh/app';
 
-export default defineApp((_app) => {
-  // Add global middleware here
+export default defineApp((app) => {
+  app.use(logger());
 });

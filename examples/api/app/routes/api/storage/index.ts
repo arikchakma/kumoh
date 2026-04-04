@@ -17,7 +17,7 @@ export const GET = defineHandler(async (c) => {
   const objects = await db
     .select()
     .from(schema.objects)
-    .orderBy(desc(schema.objects.uploadedAt));
+    .orderBy(desc(schema.objects.createdAt));
 
   return c.json({ objects });
 });
@@ -44,7 +44,6 @@ export const POST = defineHandler(async (c) => {
     key,
     size: file.size,
     contentType: file.type || 'application/octet-stream',
-    uploadedAt: new Date().toISOString(),
   };
 
   await db.insert(schema.objects).values(row);
