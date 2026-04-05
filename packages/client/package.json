@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc",
     "check": "vp check",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch --preserveWatchOutput"
   },
   "dependencies": {
     "@acme/api": "workspace:*",
