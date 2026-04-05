@@ -62,8 +62,32 @@
         },
         "migrations": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "List of applied migration tags."
+          "description": "Cumulative Durable Object migration history — auto-managed by kumoh deploy. Mirrors wrangler.json migrations format.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tag": { "type": "string" },
+              "new_classes": { "type": "array", "items": { "type": "string" } },
+              "deleted_classes": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "renamed_classes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": { "type": "string" },
+                    "to": { "type": "string" }
+                  },
+                  "required": ["from", "to"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["tag"],
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

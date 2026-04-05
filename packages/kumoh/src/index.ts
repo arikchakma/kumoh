@@ -5,7 +5,7 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 import type { Plugin } from 'vite';
 
 import { virtualModules } from './server/plugin.ts';
-import { scanCrons, scanQueues } from './server/scanner.ts';
+import { scanCrons, scanObjects, scanQueues } from './server/scanner.ts';
 
 export type KumohRateLimiter = {
   name: string;
@@ -16,14 +16,24 @@ export type KumohRateLimiter = {
   namespaceId: number;
 };
 
+export type KumohDurableObject = {
+  name: string;
+  className: string;
+  camelName: string;
+  binding: string;
+  importPath: string;
+};
+
 export type KumohConfig = {
   appName: string;
   serverEntry: string;
   routesDir: string;
   cronsDir: string;
   queuesDir: string;
+  objectsDir: string;
   schemaPath: string;
   rateLimiters: KumohRateLimiter[];
+  durableObjects: KumohDurableObject[];
 };
 
 export { defineScheduled } from './factory/scheduled.ts';
@@ -74,6 +84,7 @@ function resolveConfig(raw: KumohJson, root: string): KumohConfig {
     routesDir: resolve(root, 'app/routes'),
     cronsDir: resolve(root, 'app/crons'),
     queuesDir: resolve(root, 'app/queues'),
+    objectsDir: resolve(root, 'app/objects'),
     schemaPath: resolve(root, 'app/db/schema.ts'),
     rateLimiters: (raw.rateLimiters ?? []).map((r, i) => ({
       name: r.name,
@@ -83,6 +94,7 @@ function resolveConfig(raw: KumohJson, root: string): KumohConfig {
       period: r.period,
       namespaceId: 1001 + i,
     })),
+    durableObjects: scanObjects(root, resolve(root, 'app/objects')),
   };
 }
 
@@ -91,6 +103,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
   const schemaExists = existsSync(resolve(root, 'app/db/schema.ts'));
   const cronsDir = resolve(root, 'app/crons');
   const queuesDir = resolve(root, 'app/queues');
+  const objectsDir = resolve(root, 'app/objects');
 
   const workerConfig: Record<string, unknown> = {
     name,
@@ -105,6 +118,7 @@ function createWorkerConfig(raw: KumohJson, root: string) {
         binding: bindings.d1,
         database_name: `${name}-db`,
         database_id: 'local',
+        migrations_dir: '../app/db/migrations',
       },
     ];
   }
@@ -134,6 +148,16 @@ function createWorkerConfig(raw: KumohJson, root: string) {
     if (crons.length) {
       workerConfig.triggers = { crons: crons.map((c) => c.schedule) };
     }
+  }
+
+  const objects = scanObjects(root, objectsDir);
+  if (objects.length) {
+    workerConfig.durable_objects = {
+      bindings: objects.map((o) => ({
+        name: o.binding,
+        class_name: o.className,
+      })),
+    };
   }
 
   const rateLimiters = (raw.rateLimiters ?? []).map((r, i) => ({

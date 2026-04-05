@@ -4,21 +4,24 @@ import { join, resolve } from 'node:path';
 export const root = process.cwd();
 export const configPath = resolve(root, 'kumoh.json');
 
+export type DoMigrationEntry = {
+  tag: string;
+  new_classes?: string[];
+  deleted_classes?: string[];
+  renamed_classes?: Array<{ from: string; to: string }>;
+};
+
 export type DeployState = {
   d1?: string;
   kv?: string;
   domain?: string;
-  migrations: string[];
+  migrations?: DoMigrationEntry[];
 };
 
 export type KumohJson = {
   name?: string;
   email?: { domain: string };
   state?: DeployState;
-};
-
-export type MigrationJournal = {
-  entries: Array<{ tag: string }>;
 };
 
 export async function loadConfig(): Promise<KumohJson> {

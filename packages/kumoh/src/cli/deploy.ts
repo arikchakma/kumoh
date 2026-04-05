@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { access, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import { defineCommand } from 'citty';
 
-import { scanQueues } from '../server/scanner.ts';
-import type { DeployState, KumohJson, MigrationJournal } from './config.ts';
+import { scanObjects, scanQueues } from '../server/scanner.ts';
+import type { DeployState, DoMigrationEntry, KumohJson } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
 import { log } from './log.ts';
 import { confirm, prompt } from './prompt.ts';
@@ -104,6 +104,110 @@ async function provisionQueue(name: string): Promise<void> {
   }
 }
 
+async function buildDoMigrations(
+  currentClasses: string[],
+  state: DeployState,
+  ci: boolean
+): Promise<void> {
+  const history = state.migrations ?? [];
+
+  // Compute currently deployed set (add new_classes, remove deleted/renamed-from)
+  const deployed = new Set<string>();
+  for (const entry of history) {
+    for (const c of entry.new_classes ?? []) {
+      deployed.add(c);
+    }
+    for (const c of entry.deleted_classes ?? []) {
+      deployed.delete(c);
+    }
+    for (const r of entry.renamed_classes ?? []) {
+      deployed.delete(r.from);
+      deployed.add(r.to);
+    }
+  }
+
+  const current = new Set(currentClasses);
+  const added = currentClasses.filter((c) => !deployed.has(c));
+  const removed = [...deployed].filter((c) => !current.has(c));
+
+  if (!added.length && !removed.length) {
+    return;
+  }
+
+  const nextTag = `v${history.length + 1}`;
+  const entry: DoMigrationEntry = { tag: nextTag };
+
+  if (added.length) {
+    entry.new_classes = added;
+  }
+
+  if (removed.length) {
+    if (ci) {
+      entry.deleted_classes = removed;
+      for (const c of removed) {
+        log.warn(`Durable Object "${c}" removed — deleted in CI mode`);
+      }
+    } else {
+      const renames: Array<{ from: string; to: string }> = [];
+      const deletions: string[] = [];
+
+      for (const cls of removed) {
+        const candidates = added.filter(
+          (a) => !renames.some((r) => r.to === a)
+        );
+        if (candidates.length === 1) {
+          const isRename = await confirm(
+            `Was "${cls}" renamed to "${candidates[0]}"?`
+          );
+          if (isRename) {
+            renames.push({ from: cls, to: candidates[0] });
+            // Move from new_classes to renamed_classes
+            entry.new_classes = (entry.new_classes ?? []).filter(
+              (c) => c !== candidates[0]
+            );
+            continue;
+          }
+        }
+        const shouldDelete = await confirm(
+          `"${cls}" was removed. Delete from Cloudflare? (destroys all storage for this class)`
+        );
+        if (shouldDelete) {
+          deletions.push(cls);
+        } else {
+          log.warn(
+            `"${cls}" kept in wrangler migrations but no longer in app/objects/ — handle manually if needed`
+          );
+        }
+      }
+
+      if (renames.length) {
+        entry.renamed_classes = renames;
+      }
+      if (deletions.length) {
+        entry.deleted_classes = deletions;
+      }
+    }
+  }
+
+  const isNoop =
+    !entry.new_classes?.length &&
+    !entry.deleted_classes?.length &&
+    !entry.renamed_classes?.length;
+
+  if (!isNoop) {
+    state.migrations = [...history, entry];
+    const added = entry.new_classes ?? [];
+    const del = entry.deleted_classes ?? [];
+    const ren = (entry.renamed_classes ?? []).map((r) => `${r.from}→${r.to}`);
+    const parts = [
+      added.length ? `+[${added.join(', ')}]` : '',
+      ren.length ? `~[${ren.join(', ')}]` : '',
+      del.length ? `-[${del.join(', ')}]` : '',
+    ].filter(Boolean);
+    log.ok(`DO migrations (${nextTag}): ${parts.join(' ')}`);
+  }
+}
+
 async function patchWranglerConfig(state: DeployState): Promise<void> {
   const wranglerPath = resolve(root, 'dist', 'wrangler.json');
   const config = parseJson<Record<string, unknown>>(
@@ -124,44 +228,30 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
     config.routes = [{ pattern: state.domain, custom_domain: true }];
   }
 
+  if (state.migrations?.length) {
+    config.migrations = state.migrations.map((entry) => {
+      const m: Record<string, unknown> = { tag: entry.tag };
+      if (entry.new_classes?.length) {
+        m.new_classes = entry.new_classes;
+      }
+      if (entry.deleted_classes?.length) {
+        m.deleted_classes = entry.deleted_classes;
+      }
+      if (entry.renamed_classes?.length) {
+        m.renamed_classes = entry.renamed_classes;
+      }
+      return m;
+    });
+  }
+
   await writeFile(wranglerPath, JSON.stringify(config, null, 2));
 }
 
-export async function applyMigrations(
-  config: KumohJson,
-  state: DeployState,
-  persist: () => Promise<void>
-): Promise<void> {
-  const dir = migrationsDir();
-  const journalPath = join(dir, 'meta', '_journal.json');
-
-  try {
-    await access(journalPath);
-  } catch {
-    log.warn('No migrations found');
-    return;
-  }
-
-  const journal = parseJson<MigrationJournal>(
-    await readFile(journalPath, 'utf-8'),
-    'migrations journal'
-  );
-  const applied = new Set(state.migrations);
-  const pending = journal.entries.filter((e) => !applied.has(e.tag));
-
-  if (!pending.length) {
-    log.ok('All migrations already applied');
-    return;
-  }
-
+export async function applyMigrations(config: KumohJson): Promise<void> {
   const dbName = `${config.name ?? 'kumoh-app'}-db`;
-  for (const entry of pending) {
-    const sqlFile = join(dir, `${entry.tag}.sql`);
-    await wrangler(`d1 execute ${dbName} --remote --file=${sqlFile}`);
-    state.migrations.push(entry.tag);
-    await persist();
-    log.ok(`${entry.tag}.sql`);
-  }
+  await wranglerExec(
+    `d1 migrations apply ${dbName} --remote --migrations-dir ${migrationsDir()}`
+  );
 }
 
 async function build(): Promise<void> {
@@ -253,6 +343,16 @@ export const deploy = defineCommand({
       await provisionQueue(q.queueName);
     }
 
+    const scannedObjects = scanObjects(root, 'app/objects');
+    if (scannedObjects.length) {
+      log.step('Resolving Durable Object migrations...');
+      await buildDoMigrations(
+        scannedObjects.map((o) => o.className),
+        state,
+        ci
+      );
+    }
+
     // Save provisioned IDs immediately so a re-run finds existing resources
     await persist();
 
@@ -273,7 +373,7 @@ export const deploy = defineCommand({
 
     if (existsSync('app/db/schema.ts')) {
       log.step('Applying migrations...');
-      await applyMigrations(config, state, persist);
+      await applyMigrations(config);
     }
 
     log.step('Deploying worker...');

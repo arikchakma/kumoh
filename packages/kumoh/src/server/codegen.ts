@@ -2,6 +2,7 @@ import { genImport, genSafeVariableName } from 'knitwork';
 
 import type {
   ScannedCron,
+  ScannedDurableObject,
   ScannedQueue,
   ScannedRouteGroup,
 } from './scanner.ts';
@@ -16,7 +17,8 @@ export function generateWorkerEntry(
   routeGroups: ScannedRouteGroup[],
   crons: ScannedCron[],
   queues: ScannedQueue[],
-  emailEntry: string | null
+  emailEntry: string | null,
+  durableObjects: ScannedDurableObject[] = []
 ): string {
   const lines: string[] = [];
 
@@ -107,6 +109,11 @@ export function generateWorkerEntry(
   }
 
   lines.push('});');
+
+  for (const obj of durableObjects) {
+    lines.push(`export { ${obj.className} } from "${obj.importPath}";`);
+  }
+
   lines.push('');
 
   return lines.join('\n');

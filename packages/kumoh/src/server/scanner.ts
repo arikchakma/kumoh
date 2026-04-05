@@ -40,6 +40,15 @@ export type ScannedQueue = {
   importPath: string;
 };
 
+export type ScannedDurableObject = {
+  filePath: string;
+  name: string;
+  className: string;
+  camelName: string;
+  binding: string;
+  importPath: string;
+};
+
 export function findServerEntry(
   root: string,
   serverEntry?: string
@@ -245,6 +254,44 @@ function toCamelCase(str: string): string {
 
 function toUpperSnake(str: string): string {
   return str.replace(/-/g, '_').toUpperCase();
+}
+
+function toPascalCase(str: string): string {
+  return str
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
+}
+
+export function scanObjects(
+  root: string,
+  objectsDir: string
+): ScannedDurableObject[] {
+  const absDir = isAbsolute(objectsDir)
+    ? objectsDir
+    : resolve(root, objectsDir);
+  if (!existsSync(absDir)) {
+    return [];
+  }
+  const files = fg.sync('**/*.{ts,js}', {
+    cwd: absDir,
+    ignore: ['**/*.d.ts'],
+  });
+
+  return files
+    .filter((f) => !basename(f).startsWith('_'))
+    .map((file) => {
+      const name = basename(file, extname(file));
+      const className = toPascalCase(name);
+      return {
+        filePath: resolve(absDir, file),
+        name,
+        className,
+        camelName: toCamelCase(name),
+        binding: toUpperSnake(className),
+        importPath: resolve(absDir, file),
+      };
+    });
 }
 
 export function scanQueues(

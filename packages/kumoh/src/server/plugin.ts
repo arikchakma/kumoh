@@ -12,6 +12,7 @@ import {
   VIRTUAL_EMAIL,
   VIRTUAL_APP,
   VIRTUAL_RATE_LIMIT,
+  VIRTUAL_OBJECTS,
   VIRTUAL_ENTRY,
 } from '../constants.ts';
 import type { KumohConfig } from '../index.ts';
@@ -20,6 +21,7 @@ import { generateAiModule } from '../virtual/ai.ts';
 import { generateDbModule } from '../virtual/db.ts';
 import { generateEmailModule } from '../virtual/email.ts';
 import { generateKvModule } from '../virtual/kv.ts';
+import { generateObjectsModule } from '../virtual/objects.ts';
 import { generateQueueModule } from '../virtual/queue.ts';
 import { generateRateLimitModule } from '../virtual/rate-limit.ts';
 import { generateStorageModule } from '../virtual/storage.ts';
@@ -29,6 +31,7 @@ import {
   groupRoutesByDirectory,
   scanCrons,
   scanEmail,
+  scanObjects,
   scanQueues,
 } from './scanner.ts';
 
@@ -55,6 +58,8 @@ function createGenerators(
         'export function defineMiddleware(handler) { return handler; }',
       ].join('\n'),
     [VIRTUAL_RATE_LIMIT]: () => generateRateLimitModule(config.rateLimiters),
+    [VIRTUAL_OBJECTS]: () =>
+      generateObjectsModule(scanObjects(root, config.objectsDir!)),
   };
 }
 
@@ -117,6 +122,9 @@ function generateTypes(config: KumohConfig, root: string): void {
   for (const l of config.rateLimiters) {
     bindings.push(`    ${l.binding}: RateLimit;`);
   }
+  for (const o of config.durableObjects) {
+    bindings.push(`    ${o.binding}: DurableObjectNamespace;`);
+  }
   for (const q of queues) {
     bindings.push(
       `    ${q.binding}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
@@ -168,6 +176,14 @@ function generateTypes(config: KumohConfig, root: string): void {
       '  }',
       '}'
     );
+  }
+
+  if (config.durableObjects.length) {
+    const props = config.durableObjects
+      .map((o) => `  export const ${o.camelName}: DurableObjectNamespace;`)
+      .join('\n');
+
+    sections.push('', "declare module 'kumoh/objects' {", props, '}');
   }
 
   writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
@@ -256,9 +272,12 @@ export function virtualModules(config: KumohConfig): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
-      const dirs = [config.routesDir, config.cronsDir, config.queuesDir].filter(
-        Boolean
-      ) as string[];
+      const dirs = [
+        config.routesDir,
+        config.cronsDir,
+        config.queuesDir,
+        config.objectsDir,
+      ].filter(Boolean) as string[];
 
       for (const dir of dirs) {
         server.watcher.add(dir);
@@ -290,6 +309,10 @@ export function virtualModules(config: KumohConfig): Plugin {
         const queueMod = server.moduleGraph.getModuleById('\0kumoh/queue');
         if (queueMod) {
           server.moduleGraph.invalidateModule(queueMod);
+        }
+        const objectsMod = server.moduleGraph.getModuleById('\0kumoh/objects');
+        if (objectsMod) {
+          server.moduleGraph.invalidateModule(objectsMod);
         }
 
         server.ws.send({ type: 'full-reload' });
@@ -333,12 +356,14 @@ export function virtualModules(config: KumohConfig): Plugin {
           config.appName ?? 'kumoh-app'
         );
         const emailEntry = scanEmail(root);
+        const durableObjects = scanObjects(root, config.objectsDir!);
         return generateWorkerEntry(
           serverEntry,
           routeGroups,
           crons,
           queues,
-          emailEntry
+          emailEntry,
+          durableObjects
         );
       }
 

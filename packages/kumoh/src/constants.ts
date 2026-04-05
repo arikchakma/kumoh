@@ -12,4 +12,5 @@ export const VIRTUAL_EMAIL = 'kumoh/email';
 export const VIRTUAL_SERVER = 'kumoh/server';
 export const VIRTUAL_APP = 'kumoh/app';
 export const VIRTUAL_RATE_LIMIT = 'kumoh/rate-limit';
+export const VIRTUAL_OBJECTS = 'kumoh/objects';
 export const VIRTUAL_ENTRY = 'kumoh/entry';
