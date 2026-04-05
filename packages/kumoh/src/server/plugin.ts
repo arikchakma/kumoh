@@ -131,25 +131,14 @@ function generateTypes(config: KumohConfig, root: string): void {
     );
   }
 
+  // Augment the global KumohBindings interface declared in virtual.d.ts.
+  // defineHandler in virtual.d.ts already references this interface, so all
+  // route handlers automatically pick up the project-specific bindings.
   sections.push(
-    "import type { Context, Hono, Next } from 'hono';",
-    '',
-    'type KumohBindings = {',
+    'declare global {',
+    '  interface KumohBindings {',
     ...bindings,
-    '};',
-    '',
-    'type KumohEnv = { Bindings: KumohBindings };',
-    '',
-    "import type { CreateHandlersInterface } from 'hono/factory';",
-    '',
-    "declare module 'kumoh/app' {",
-    '  export function defineApp(',
-    '    init: (app: Hono<KumohEnv>) => void',
-    '  ): (app: Hono<KumohEnv>) => void;',
-    '  export const defineHandler: CreateHandlersInterface<KumohEnv, any>;',
-    '  export function defineMiddleware(',
-    '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
-    '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
+    '  }',
     '}'
   );
 

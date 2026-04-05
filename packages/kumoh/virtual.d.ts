@@ -77,16 +77,28 @@ declare module 'kumoh/email' {
   ): EmailExportedHandler<Env>;
 }
 
+// Global interface augmented per-project by .kumoh/kumoh.d.ts code generation.
+// Bindings are added automatically — do not edit manually.
+declare global {
+  interface KumohBindings {}
+}
+
 declare module 'kumoh/app' {
-  import type { Context, Env, Hono, Next } from 'hono';
+  import type { Context, Hono, Next } from 'hono';
   import type { CreateHandlersInterface } from 'hono/factory';
-  export function defineApp<E extends Env = Env>(
-    init: (app: Hono<E>) => void
-  ): (app: Hono<E>) => void;
-  export const defineHandler: CreateHandlersInterface<Env, any>;
-  export function defineMiddleware<E extends Env = Env>(
-    handler: (c: Context<E>, next: Next) => Response | Promise<Response | void>
-  ): (c: Context<E>, next: Next) => Response | Promise<Response | void>;
+
+  type _KumohEnv = { Bindings: KumohBindings };
+
+  export function defineApp(
+    init: (app: Hono<_KumohEnv>) => void
+  ): (app: Hono<_KumohEnv>) => void;
+  export const defineHandler: CreateHandlersInterface<_KumohEnv, any>;
+  export function defineMiddleware(
+    handler: (
+      c: Context<_KumohEnv>,
+      next: Next
+    ) => Response | Promise<Response | void>
+  ): (c: Context<_KumohEnv>, next: Next) => Response | Promise<Response | void>;
 }
 
 declare module 'kumoh/rate-limit' {
