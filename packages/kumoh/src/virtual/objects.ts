@@ -7,13 +7,15 @@ export const objects = {};
 `;
   }
 
-  const exports = objects
-    .map((o) => `export const ${o.camelName} = env.${o.binding};`)
-    .join('\n');
+  const props = objects
+    .map((o) => `  ${o.camelName}: env.${o.binding}`)
+    .join(',\n');
 
   return /* js */ `
 import { env } from "cloudflare:workers";
 
-${exports}
+export const objects = {
+${props},
+};
 `;
 }

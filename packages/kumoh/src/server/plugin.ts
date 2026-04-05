@@ -169,10 +169,17 @@ function generateTypes(config: KumohConfig, root: string): void {
 
   if (config.durableObjects.length) {
     const props = config.durableObjects
-      .map((o) => `  export const ${o.camelName}: DurableObjectNamespace;`)
+      .map((o) => `    ${o.camelName}: DurableObjectNamespace;`)
       .join('\n');
 
-    sections.push('', "declare module 'kumoh/objects' {", props, '}');
+    sections.push(
+      '',
+      "declare module 'kumoh/objects' {",
+      '  interface KumohDurableObjects {',
+      props,
+      '  }',
+      '}'
+    );
   }
 
   writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
