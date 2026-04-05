@@ -233,7 +233,11 @@ function generateTypes(config: KumohConfig, root: string): void {
     const schemaRef = existsSync(config.schemaPath)
       ? config.schemaPath.replace(root, '..').replace(/\.ts$/, '')
       : null;
-    const rpcLines = [AUTO_GENERATED_COMMENT, "import { Hono } from 'hono';"];
+    const rpcLines = [
+      AUTO_GENERATED_COMMENT,
+      '/// <reference path="./kumoh.d.ts" />',
+      "import { Hono } from 'hono';",
+    ];
     if (schemaRef) {
       rpcLines.push(
         `import type * as _kumohSchema from '${schemaRef}';`,
