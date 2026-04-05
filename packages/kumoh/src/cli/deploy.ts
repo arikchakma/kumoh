@@ -127,7 +127,7 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
   await writeFile(wranglerPath, JSON.stringify(config, null, 2));
 }
 
-async function applyMigrations(
+export async function applyMigrations(
   config: KumohJson,
   state: DeployState,
   persist: () => Promise<void>

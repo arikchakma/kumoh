@@ -4,7 +4,15 @@ import { resolve } from 'node:path';
 import { defineCommand } from 'citty';
 
 import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
-import { loadConfig, migrationsDir, root, schemaPath } from './config.ts';
+import type { DeployState } from './config.ts';
+import {
+  loadConfig,
+  migrationsDir,
+  root,
+  saveConfig,
+  schemaPath,
+} from './config.ts';
+import { applyMigrations } from './deploy.ts';
 import {
   cleanupTempConfig,
   requireLocalDb,
@@ -12,6 +20,7 @@ import {
   writeTempConfig,
 } from './drizzle.ts';
 import { log } from './log.ts';
+import { ensureLoggedIn } from './wrangler.ts';
 
 async function generateSchemaTypes(schemaFile: string): Promise<void> {
   await mkdir(resolve(root, '.kumoh'), { recursive: true });
@@ -52,8 +61,36 @@ const migrate = defineCommand({
     name: 'migrate',
     description: 'Push schema changes to local D1 database',
   },
-  async run() {
-    await loadConfig();
+  args: {
+    remote: {
+      type: 'boolean',
+      default: false,
+      description: 'Apply pending migrations to the remote D1 database',
+    },
+  },
+  async run(ctx) {
+    const config = await loadConfig();
+
+    if (ctx.args.remote) {
+      if (!config.state?.d1) {
+        console.error('No remote D1 found. Run kumoh deploy first.');
+        process.exit(1);
+      }
+      await ensureLoggedIn();
+      const state: DeployState = {
+        d1: config.state.d1,
+        kv: config.state.kv,
+        domain: config.state.domain,
+        migrations: config.state.migrations ?? [],
+      };
+      const persist = async () => {
+        config.state = state;
+        await saveConfig(config);
+      };
+      await applyMigrations(config, state, persist);
+      return;
+    }
+
     const dbPath = await requireLocalDb();
     const tempConfig = await writeTempConfig({
       dbCredentials: { url: dbPath },
