@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { defineCommand } from 'citty';
 
 import { scanCrons, scanQueues } from '../server/scanner.ts';
-import type { MigrationJournal } from './config.ts';
 import { loadConfig, migrationsDir } from './config.ts';
 
 function row(label: string, value: string): void {
@@ -68,16 +67,8 @@ export const status = defineCommand({
       const journalPath = join(dir, 'meta', '_journal.json');
       try {
         await access(journalPath);
-        const journal: MigrationJournal = JSON.parse(
-          await readFile(journalPath, 'utf-8')
-        );
-        const total = journal.entries.length;
-        const applied = deploy.migrations?.length ?? 0;
-        const pending = total - applied;
-        row(
-          'Migrations',
-          `${applied} applied${pending > 0 ? `, ${pending} pending` : ''}`
-        );
+        const journal = JSON.parse(await readFile(journalPath, 'utf-8'));
+        row('Migrations', `${journal.entries.length} total`);
       } catch {
         row('Migrations', 'none');
       }

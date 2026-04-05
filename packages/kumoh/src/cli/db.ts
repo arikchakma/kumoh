@@ -4,14 +4,7 @@ import { resolve } from 'node:path';
 import { defineCommand } from 'citty';
 
 import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
-import type { DeployState } from './config.ts';
-import {
-  loadConfig,
-  migrationsDir,
-  root,
-  saveConfig,
-  schemaPath,
-} from './config.ts';
+import { loadConfig, migrationsDir, root, schemaPath } from './config.ts';
 import { applyMigrations } from './deploy.ts';
 import {
   cleanupTempConfig,
@@ -77,17 +70,7 @@ const migrate = defineCommand({
         process.exit(1);
       }
       await ensureLoggedIn();
-      const state: DeployState = {
-        d1: config.state.d1,
-        kv: config.state.kv,
-        domain: config.state.domain,
-        migrations: config.state.migrations ?? [],
-      };
-      const persist = async () => {
-        config.state = state;
-        await saveConfig(config);
-      };
-      await applyMigrations(config, state, persist);
+      await applyMigrations(config);
       return;
     }
 
