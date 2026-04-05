@@ -67,7 +67,14 @@ export default function Objects() {
       setStatus('closed');
     };
 
+    const ping = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 15_000);
+
     return () => {
+      clearInterval(ping);
       wsRef.current?.close();
       wsRef.current = null;
     };
