@@ -288,7 +288,7 @@ export function scanObjects(
         name,
         className,
         camelName: toCamelCase(name),
-        binding: toUpperSnake(className),
+        binding: toUpperSnake(name),
         importPath: resolve(absDir, file),
       };
     });

@@ -93,3 +93,8 @@ declare module 'kumoh/rate-limit' {
   interface KumohRateLimiters {}
   export const rateLimit: KumohRateLimiters;
 }
+
+declare module 'kumoh/objects' {
+  // Named exports are added per-project by .kumoh/kumoh.d.ts code generation.
+  // Each Durable Object in app/objects/ becomes a named export typed as DurableObjectNamespace.
+}
