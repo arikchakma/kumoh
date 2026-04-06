@@ -6,207 +6,25 @@ import { resolve } from 'node:path';
 import { defineCommand } from 'citty';
 
 import { scanObjects, scanQueues } from '../server/scanner.ts';
-import type { DeployState, DoMigrationEntry, KumohJson } from './config.ts';
+import type { DeployState, KumohJson } from './config.ts';
 import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
+import { buildDoMigrations } from './do-migrations.ts';
 import { log } from './log.ts';
 import { confirm, prompt } from './prompt.ts';
+import {
+  parseJson,
+  provisionD1,
+  provisionKV,
+  provisionQueue,
+  provisionR2,
+} from './provision.ts';
 import {
   deleteWorkerQueue,
   ensureLoggedIn,
   getWorkerQueueConsumers,
   removeQueueConsumer,
-  wrangler,
   wranglerExec,
 } from './wrangler.ts';
-
-function parseJson<T>(raw: string, context: string): T {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    throw new Error(`[kumoh] Failed to parse JSON from ${context}:\n${raw}`);
-  }
-}
-
-async function provisionD1(name: string, state: DeployState): Promise<void> {
-  if (state.d1) {
-    log.ok(`D1 database "${name}" (${state.d1.slice(0, 8)}…) — exists`);
-    return;
-  }
-
-  try {
-    const info = parseJson<{ uuid: string }>(
-      await wrangler(`d1 info ${name} --json`),
-      'wrangler d1 info'
-    );
-    state.d1 = info.uuid;
-    log.ok(`D1 database "${name}" (${info.uuid.slice(0, 8)}…) — found`);
-  } catch {
-    await wrangler(`d1 create ${name}`);
-    const info = parseJson<{ uuid: string }>(
-      await wrangler(`d1 info ${name} --json`),
-      'wrangler d1 info'
-    );
-    state.d1 = info.uuid;
-    log.ok(`D1 database "${name}" (${info.uuid.slice(0, 8)}…) — created`);
-  }
-}
-
-async function provisionKV(name: string, state: DeployState): Promise<void> {
-  if (state.kv) {
-    log.ok(`KV namespace (${state.kv.slice(0, 8)}…) — exists`);
-    return;
-  }
-
-  const list = parseJson<Array<{ id: string; title: string }>>(
-    await wrangler('kv namespace list'),
-    'wrangler kv namespace list'
-  );
-  const existing = list.find((ns) => ns.title === name);
-
-  if (existing) {
-    state.kv = existing.id;
-    log.ok(`KV namespace (${existing.id.slice(0, 8)}…) — found`);
-    return;
-  }
-
-  await wrangler(`kv namespace create ${name}`);
-  const listAfter = parseJson<Array<{ id: string; title: string }>>(
-    await wrangler('kv namespace list'),
-    'wrangler kv namespace list'
-  );
-  const created = listAfter.find((ns) => ns.title === name);
-  if (!created) {
-    throw new Error(
-      `[kumoh] KV namespace "${name}" was created but not found in namespace list`
-    );
-  }
-  state.kv = created.id;
-  log.ok(`KV namespace (${created.id.slice(0, 8)}…) — created`);
-}
-
-// R2 has no "get bucket info" API like D1/KV, so we just try to create
-// and treat failure as "already exists"
-async function provisionR2(name: string): Promise<void> {
-  try {
-    await wrangler(`r2 bucket create ${name}`);
-    log.ok(`R2 bucket "${name}" — created`);
-  } catch {
-    log.ok(`R2 bucket "${name}" — exists`);
-  }
-}
-
-async function provisionQueue(name: string): Promise<void> {
-  try {
-    await wrangler(`queues create ${name}`);
-    log.ok(`Queue "${name}" — created`);
-  } catch {
-    log.ok(`Queue "${name}" — exists`);
-  }
-}
-
-async function buildDoMigrations(
-  currentClasses: string[],
-  state: DeployState,
-  ci: boolean
-): Promise<void> {
-  const history = state.migrations ?? [];
-
-  // Compute currently deployed set (add new_classes, remove deleted/renamed-from)
-  const deployed = new Set<string>();
-  for (const entry of history) {
-    for (const c of entry.new_classes ?? []) {
-      deployed.add(c);
-    }
-    for (const c of entry.deleted_classes ?? []) {
-      deployed.delete(c);
-    }
-    for (const r of entry.renamed_classes ?? []) {
-      deployed.delete(r.from);
-      deployed.add(r.to);
-    }
-  }
-
-  const current = new Set(currentClasses);
-  const added = currentClasses.filter((c) => !deployed.has(c));
-  const removed = [...deployed].filter((c) => !current.has(c));
-
-  if (!added.length && !removed.length) {
-    return;
-  }
-
-  const nextTag = `v${history.length + 1}`;
-  const entry: DoMigrationEntry = { tag: nextTag };
-
-  if (added.length) {
-    entry.new_classes = added;
-  }
-
-  if (removed.length) {
-    if (ci) {
-      entry.deleted_classes = removed;
-      for (const c of removed) {
-        log.warn(`Durable Object "${c}" removed — deleted in CI mode`);
-      }
-    } else {
-      const renames: Array<{ from: string; to: string }> = [];
-      const deletions: string[] = [];
-
-      for (const cls of removed) {
-        const candidates = added.filter(
-          (a) => !renames.some((r) => r.to === a)
-        );
-        if (candidates.length === 1) {
-          const isRename = await confirm(
-            `Was "${cls}" renamed to "${candidates[0]}"?`
-          );
-          if (isRename) {
-            renames.push({ from: cls, to: candidates[0] });
-            // Move from new_classes to renamed_classes
-            entry.new_classes = (entry.new_classes ?? []).filter(
-              (c) => c !== candidates[0]
-            );
-            continue;
-          }
-        }
-        const shouldDelete = await confirm(
-          `"${cls}" was removed. Delete from Cloudflare? (destroys all storage for this class)`
-        );
-        if (shouldDelete) {
-          deletions.push(cls);
-        } else {
-          log.warn(
-            `"${cls}" kept in wrangler migrations but no longer in app/objects/ — handle manually if needed`
-          );
-        }
-      }
-
-      if (renames.length) {
-        entry.renamed_classes = renames;
-      }
-      if (deletions.length) {
-        entry.deleted_classes = deletions;
-      }
-    }
-  }
-
-  const isNoop =
-    !entry.new_classes?.length &&
-    !entry.deleted_classes?.length &&
-    !entry.renamed_classes?.length;
-
-  if (!isNoop) {
-    state.migrations = [...history, entry];
-    const added = entry.new_classes ?? [];
-    const del = entry.deleted_classes ?? [];
-    const ren = (entry.renamed_classes ?? []).map((r) => `${r.from}→${r.to}`);
-    const parts = [
-      added.length ? `+[${added.join(', ')}]` : '',
-      ren.length ? `~[${ren.join(', ')}]` : '',
-      del.length ? `-[${del.join(', ')}]` : '',
-    ].filter(Boolean);
-    log.ok(`DO migrations (${nextTag}): ${parts.join(' ')}`);
-  }
-}
 
 async function patchWranglerConfig(state: DeployState): Promise<void> {
   const wranglerPath = resolve(root, 'dist', 'wrangler.json');

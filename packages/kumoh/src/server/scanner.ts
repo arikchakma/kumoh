@@ -4,6 +4,7 @@ import { basename, dirname, extname, isAbsolute, resolve } from 'node:path';
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
+import { toCamelCase, toPascalCase, toUpperSnake } from '../lib/case.ts';
 import {
   dirToMountPath,
   fileToSubPath,
@@ -246,21 +247,6 @@ export function scanEmail(root: string): string | null {
     }
   }
   return null;
-}
-
-function toCamelCase(str: string): string {
-  return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-function toUpperSnake(str: string): string {
-  return str.replace(/-/g, '_').toUpperCase();
-}
-
-function toPascalCase(str: string): string {
-  return str
-    .split('-')
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-    .join('');
 }
 
 export function scanObjects(

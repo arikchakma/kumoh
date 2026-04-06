@@ -21,7 +21,6 @@ export default defineConfig({
       neverBundle: [
         '@cloudflare/vite-plugin',
         'hono',
-        'vite',
         'drizzle-orm',
         'oxc-parser',
       ],

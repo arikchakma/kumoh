@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { defineCommand } from 'citty';
 
 import { resolveConfig } from '../index.ts';
-import { generateTypes } from '../server/plugin.ts';
+import { generateTypes } from '../server/typegen.ts';
 import { loadConfig, migrationsDir, root } from './config.ts';
 import { applyMigrations } from './deploy.ts';
 import {
