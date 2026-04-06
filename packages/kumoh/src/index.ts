@@ -77,7 +77,17 @@ function readConfig(root: string): KumohJson {
   return JSON.parse(readFileSync(configPath, 'utf-8'));
 }
 
-function resolveConfig(raw: KumohJson, root: string): KumohConfig {
+export function resolveConfig(root: string): KumohConfig;
+export function resolveConfig(raw: KumohJson, root: string): KumohConfig;
+export function resolveConfig(
+  rawOrRoot: KumohJson | string,
+  root?: string
+): KumohConfig {
+  const resolvedRoot = typeof rawOrRoot === 'string' ? rawOrRoot : root!;
+  const raw = typeof rawOrRoot === 'string' ? readConfig(rawOrRoot) : rawOrRoot;
+  return _resolveConfig(raw, resolvedRoot);
+}
+function _resolveConfig(raw: KumohJson, root: string): KumohConfig {
   return {
     appName: raw.name ?? 'kumoh-app',
     serverEntry: resolve(root, 'app/server.ts'),

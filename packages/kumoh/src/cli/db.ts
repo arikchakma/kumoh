@@ -1,10 +1,10 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir } from 'node:fs/promises';
 
 import { defineCommand } from 'citty';
 
-import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
-import { loadConfig, migrationsDir, root, schemaPath } from './config.ts';
+import { resolveConfig } from '../index.ts';
+import { generateTypes } from '../server/plugin.ts';
+import { loadConfig, migrationsDir, root } from './config.ts';
 import { applyMigrations } from './deploy.ts';
 import {
   cleanupTempConfig,
@@ -14,25 +14,6 @@ import {
 } from './drizzle.ts';
 import { log } from './log.ts';
 import { ensureLoggedIn } from './wrangler.ts';
-
-async function generateSchemaTypes(schemaFile: string): Promise<void> {
-  await mkdir(resolve(root, '.kumoh'), { recursive: true });
-
-  const relative = schemaFile.replace(root, '..').replace(/\.ts$/, '');
-
-  const content = [
-    AUTO_GENERATED_COMMENT,
-    "import type * as s from '" + relative + "';",
-    '',
-    "declare module 'kumoh/db' {",
-    '  export const schema: typeof s;',
-    '}',
-    '',
-  ].join('\n');
-
-  await writeFile(resolve(root, '.kumoh', 'kumoh.d.ts'), content);
-  log.ok('Generated .kumoh/kumoh.d.ts');
-}
 
 const generate = defineCommand({
   meta: {
@@ -45,7 +26,8 @@ const generate = defineCommand({
     const tempConfig = await writeTempConfig();
     await runDrizzleKit(`generate --config=${tempConfig}`);
     await cleanupTempConfig();
-    await generateSchemaTypes(schemaPath());
+    generateTypes(resolveConfig(root), root);
+    log.ok('Generated .kumoh/kumoh.d.ts');
   },
 });
 

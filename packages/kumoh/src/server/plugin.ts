@@ -63,7 +63,7 @@ function createGenerators(
   };
 }
 
-function generateTypes(config: KumohConfig, root: string): void {
+export function generateTypes(config: KumohConfig, root: string): void {
   const kumohDir = resolve(root, '.kumoh');
   mkdirSync(kumohDir, { recursive: true });
 
