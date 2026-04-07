@@ -23,6 +23,8 @@ export default defineConfig({
         'hono',
         'drizzle-orm',
         'oxc-parser',
+        'vite-plus-core',
+        'vite-plus',
       ],
     },
   },
