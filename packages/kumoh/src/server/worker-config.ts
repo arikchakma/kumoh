@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import type { KumohDurableObject } from '../index.ts';
 import { toUpperSnake } from '../lib/case.ts';
-import { scanCrons, scanObjects, scanQueues } from './scanner.ts';
+import { scanCrons, scanQueues } from './scanner.ts';
 
 type RateLimiter = {
   name: string;
@@ -24,13 +25,13 @@ const bindings = {
 
 export function createWorkerConfig(
   raw: RawConfig,
-  root: string
+  root: string,
+  durableObjects: KumohDurableObject[] = []
 ): Record<string, unknown> {
   const name = raw.name ?? 'kumoh-app';
   const schemaExists = existsSync(resolve(root, 'app/db/schema.ts'));
   const cronsDir = resolve(root, 'app/crons');
   const queuesDir = resolve(root, 'app/queues');
-  const objectsDir = resolve(root, 'app/objects');
 
   const workerConfig: Record<string, unknown> = {
     name,
@@ -77,10 +78,9 @@ export function createWorkerConfig(
     }
   }
 
-  const objects = scanObjects(root, objectsDir);
-  if (objects.length) {
+  if (durableObjects.length) {
     workerConfig.durable_objects = {
-      bindings: objects.map((o) => ({
+      bindings: durableObjects.map((o) => ({
         name: o.binding,
         class_name: o.className,
       })),

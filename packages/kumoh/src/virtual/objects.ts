@@ -1,6 +1,6 @@
-import type { ScannedDurableObject } from '../server/scanner.ts';
+import type { KumohDurableObject } from '../index.ts';
 
-export function generateObjectsModule(objects: ScannedDurableObject[]): string {
+export function generateObjectsModule(objects: KumohDurableObject[]): string {
   if (!objects.length) {
     return /* js */ `
 export const objects = {};

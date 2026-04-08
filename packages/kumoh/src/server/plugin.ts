@@ -30,7 +30,6 @@ import {
   groupRoutesByDirectory,
   scanCrons,
   scanEmail,
-  scanObjects,
   scanQueues,
 } from './scanner.ts';
 import { generateTypes } from './typegen.ts';
@@ -52,8 +51,7 @@ function createGenerators(
     [VIRTUAL_EMAIL]: generateEmailModule,
     [VIRTUAL_APP]: generateAppModule,
     [VIRTUAL_RATE_LIMIT]: () => generateRateLimitModule(config.rateLimiters),
-    [VIRTUAL_OBJECTS]: () =>
-      generateObjectsModule(scanObjects(root, config.objectsDir!)),
+    [VIRTUAL_OBJECTS]: () => generateObjectsModule(config.durableObjects),
   };
 }
 
@@ -167,14 +165,13 @@ export function virtualModules(config: KumohConfig): Plugin {
           config.appName ?? 'kumoh-app'
         );
         const emailEntry = scanEmail(root);
-        const durableObjects = scanObjects(root, config.objectsDir!);
         return generateWorkerEntry(
           serverEntry,
           routeGroups,
           crons,
           queues,
           emailEntry,
-          durableObjects
+          config.durableObjects
         );
       }
 

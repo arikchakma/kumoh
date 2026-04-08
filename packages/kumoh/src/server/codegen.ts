@@ -1,8 +1,8 @@
 import { genImport, genSafeVariableName } from 'knitwork';
 
+import type { KumohDurableObject } from '../index.ts';
 import type {
   ScannedCron,
-  ScannedDurableObject,
   ScannedQueue,
   ScannedRouteGroup,
 } from './scanner.ts';
@@ -18,7 +18,7 @@ export function generateWorkerEntry(
   crons: ScannedCron[],
   queues: ScannedQueue[],
   emailEntry: string | null,
-  durableObjects: ScannedDurableObject[] = []
+  durableObjects: KumohDurableObject[] = []
 ): string {
   const lines: string[] = [];
 

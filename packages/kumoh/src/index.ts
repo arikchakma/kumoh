@@ -100,7 +100,7 @@ export function kumoh(): Plugin[] {
   const root = process.cwd();
   const raw = readConfig(root);
   const config = resolveConfig(raw, root);
-  const workerConfig = createWorkerConfig(raw, root);
+  const workerConfig = createWorkerConfig(raw, root, config.durableObjects);
   const envName = config.appName.replace(/-/g, '_');
 
   // Two copies of vite-plus-core in the dep tree (@cloudflare/vite-plugin brings

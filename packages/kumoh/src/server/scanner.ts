@@ -249,6 +249,28 @@ export function scanEmail(root: string): string | null {
   return null;
 }
 
+/**
+ * Parses a TS/JS file and extracts exported class names.
+ * Used to validate that DO files export the expected class.
+ */
+function parseExportedClassNames(filePath: string): string[] {
+  const code = readFileSync(filePath, 'utf-8');
+  const { program } = parseSync(filePath, code);
+  const names: string[] = [];
+
+  for (const node of program.body) {
+    if (node.type !== 'ExportNamedDeclaration') {
+      continue;
+    }
+    const declaration = node.declaration;
+    if (declaration?.type === 'ClassDeclaration' && declaration.id) {
+      names.push(declaration.id.name);
+    }
+  }
+
+  return names;
+}
+
 export function scanObjects(
   root: string,
   objectsDir: string
@@ -267,15 +289,27 @@ export function scanObjects(
   return files
     .filter((f) => !basename(f).startsWith('_'))
     .map((file) => {
+      const filePath = resolve(absDir, file);
       const name = basename(file, extname(file));
       const className = toPascalCase(name);
+
+      const exported = parseExportedClassNames(filePath);
+      if (!exported.includes(className)) {
+        const found = exported.length
+          ? `found: ${exported.join(', ')}`
+          : 'no exported classes found';
+        throw new Error(
+          `[kumoh] app/objects/${file} must export class "${className}" (${found})`
+        );
+      }
+
       return {
-        filePath: resolve(absDir, file),
+        filePath,
         name,
         className,
         camelName: toCamelCase(name),
         binding: toUpperSnake(name),
-        importPath: resolve(absDir, file),
+        importPath: filePath,
       };
     });
 }

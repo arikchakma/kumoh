@@ -65,7 +65,10 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
     bindings.push(`    ${l.binding}: RateLimit;`);
   }
   for (const o of config.durableObjects) {
-    bindings.push(`    ${o.binding}: DurableObjectNamespace;`);
+    const relative = o.importPath.replace(root, '..').replace(/\.ts$/, '');
+    bindings.push(
+      `    ${o.binding}: DurableObjectNamespace<import('${relative}').${o.className}>;`
+    );
   }
   for (const q of queues) {
     bindings.push(
@@ -108,7 +111,10 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
 
   if (config.durableObjects.length) {
     const props = config.durableObjects
-      .map((o) => `    ${o.camelName}: DurableObjectNamespace;`)
+      .map((o) => {
+        const relative = o.importPath.replace(root, '..').replace(/\.ts$/, '');
+        return `    ${o.camelName}: DurableObjectNamespace<import('${relative}').${o.className}>;`;
+      })
       .join('\n');
 
     sections.push(
