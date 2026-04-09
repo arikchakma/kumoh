@@ -8,6 +8,10 @@
       "type": "string",
       "description": "The application name. Used for the worker name and resource naming (e.g. D1 database, KV namespace, R2 bucket, queue)."
     },
+    "compatibilityDate": {
+      "type": "string",
+      "description": "Cloudflare Workers compatibility date (YYYY-MM-DD). Set automatically on kumoh init."
+    },
     "rateLimiters": {
       "type": "array",
       "description": "Cloudflare Rate Limiting bindings. Each entry becomes a named binding (e.g. 'global' → RATE_LIMITER_GLOBAL).",

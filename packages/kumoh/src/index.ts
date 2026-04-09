@@ -44,6 +44,7 @@ export { defineEmail } from './factory/email-handler.ts';
 
 type KumohJson = {
   name?: string;
+  compatibilityDate?: string;
   rateLimiters?: Array<{
     name: string;
     limit: number;
