@@ -1,6 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { asc, eq } from 'kumoh/db';
-import { db } from 'kumoh/db';
+import { asc, db, eq } from 'kumoh/db';
 
 import { chatMessages } from '../db/schema';
 

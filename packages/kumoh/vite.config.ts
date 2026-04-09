@@ -10,6 +10,7 @@ export default defineConfig({
       queue: 'src/factory/queue.ts',
       server: 'src/server/worker.ts',
       app: 'src/factory/app.ts',
+      'objects-runtime': 'src/runtime/objects.ts',
     },
     outDir: 'dist',
     format: 'esm',

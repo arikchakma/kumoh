@@ -1,4 +1,9 @@
 import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const OBJECTS_RUNTIME_PATH = fileURLToPath(
+  new URL('./objects-runtime.mjs', import.meta.url).href
+);
 
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite-plus';
 
@@ -51,7 +56,8 @@ function createGenerators(
     [VIRTUAL_EMAIL]: generateEmailModule,
     [VIRTUAL_APP]: generateAppModule,
     [VIRTUAL_RATE_LIMIT]: () => generateRateLimitModule(config.rateLimiters),
-    [VIRTUAL_OBJECTS]: () => generateObjectsModule(config.durableObjects),
+    [VIRTUAL_OBJECTS]: () =>
+      generateObjectsModule(config.durableObjects, OBJECTS_RUNTIME_PATH),
   };
 }
 

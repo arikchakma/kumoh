@@ -107,6 +107,24 @@ declare module 'kumoh/rate-limit' {
 }
 
 declare module 'kumoh/objects' {
+  type WrappedNamespace<
+    T extends Rpc.DurableObjectBranded | undefined = undefined,
+  > = {
+    getByName(
+      name: string,
+      options?: DurableObjectNamespaceGetDurableObjectOptions
+    ): DurableObjectStub<T>;
+    getById(
+      id: DurableObjectId,
+      options?: DurableObjectNamespaceGetDurableObjectOptions
+    ): DurableObjectStub<T>;
+    idFromName(name: string): DurableObjectId;
+    idFromString(id: string): DurableObjectId;
+    newUniqueId(
+      options?: DurableObjectNamespaceNewUniqueIdOptions
+    ): DurableObjectId;
+  };
+
   interface KumohDurableObjects {}
   export const objects: KumohDurableObjects;
 }

@@ -113,7 +113,7 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
     const props = config.durableObjects
       .map((o) => {
         const relative = o.importPath.replace(root, '..').replace(/\.ts$/, '');
-        return `    ${o.camelName}: DurableObjectNamespace<import('${relative}').${o.className}>;`;
+        return `    ${o.camelName}: WrappedNamespace<import('${relative}').${o.className}>;`;
       })
       .join('\n');
 
