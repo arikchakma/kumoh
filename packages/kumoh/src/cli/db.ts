@@ -83,5 +83,5 @@ const studio = defineCommand({
 
 export const db = defineCommand({
   meta: { name: 'db', description: 'Database commands' },
-  subCommands: { generate, migrate, push: migrate, studio },
+  subCommands: { generate, migrate, studio },
 });

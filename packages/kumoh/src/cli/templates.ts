@@ -1,9 +1,12 @@
+import { today } from '../lib/case.ts';
+
 export const templates = {
   kumohJson: (name: string) =>
     JSON.stringify(
       {
         $schema: './node_modules/kumoh/kumoh.schema.json',
         name,
+        compatibilityDate: today(),
       },
       null,
       2
@@ -13,7 +16,7 @@ export const templates = {
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
-   fmt: {
+  fmt: {
     endOfLine: 'lf',
     singleQuote: true,
     tabWidth: 2,

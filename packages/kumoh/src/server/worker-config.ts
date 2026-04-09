@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import type { KumohDurableObject } from '../index.ts';
-import { toUpperSnake } from '../lib/case.ts';
+import { today, toUpperSnake } from '../lib/case.ts';
 import { scanCrons, scanQueues } from './scanner.ts';
 
 type RateLimiter = {
@@ -13,6 +13,7 @@ type RateLimiter = {
 
 type RawConfig = {
   name?: string;
+  compatibilityDate?: string;
   rateLimiters?: Array<RateLimiter>;
   state?: { domain?: string };
 };
@@ -36,7 +37,7 @@ export function createWorkerConfig(
   const workerConfig: Record<string, unknown> = {
     name,
     main: 'kumoh/entry',
-    compatibility_date: '2025-03-14',
+    compatibility_date: raw.compatibilityDate ?? today(),
     compatibility_flags: ['nodejs_compat'],
   };
 
@@ -87,6 +88,8 @@ export function createWorkerConfig(
     };
   }
 
+  // Cloudflare rate limiting requires unique numeric namespace IDs per binding.
+  // Starting at 1001 to avoid collisions with internal IDs.
   const rateLimiters = (raw.rateLimiters ?? []).map((r, i) => ({
     name: `RATE_LIMITER_${toUpperSnake(r.name)}`,
     type: 'ratelimit',

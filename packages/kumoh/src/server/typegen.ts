@@ -1,9 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 import type { KumohConfig } from '../index.ts';
 import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
 import { groupRoutesByDirectory, scanQueues } from './scanner.ts';
+
+function toRelativeImport(absPath: string, root: string): string {
+  return '../' + relative(root, absPath).replace(/\.ts$/, '');
+}
 
 function generateBindingTypes(config: KumohConfig, root: string): void {
   const kumohDir = resolve(root, '.kumoh');
@@ -12,9 +16,9 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
   const sections: string[] = [AUTO_GENERATED_COMMENT];
 
   if (existsSync(config.schemaPath)) {
-    const relative = config.schemaPath.replace(root, '..').replace(/\.ts$/, '');
+    const schemaImport = toRelativeImport(config.schemaPath, root);
     sections.push(
-      `import type * as s from '${relative}';`,
+      `import type * as s from '${schemaImport}';`,
       '',
       "declare module 'kumoh/db' {",
       '  export const schema: typeof s;',
@@ -28,8 +32,8 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
   if (queues.length) {
     const imports = queues
       .map((q) => {
-        const relative = q.importPath.replace(root, '..').replace(/\.ts$/, '');
-        return `import type handler_${q.camelName} from '${relative}';`;
+        const queueImport = toRelativeImport(q.importPath, root);
+        return `import type handler_${q.camelName} from '${queueImport}';`;
       })
       .join('\n');
 
@@ -65,9 +69,9 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
     bindings.push(`    ${l.binding}: RateLimit;`);
   }
   for (const o of config.durableObjects) {
-    const relative = o.importPath.replace(root, '..').replace(/\.ts$/, '');
+    const objImport = toRelativeImport(o.importPath, root);
     bindings.push(
-      `    ${o.binding}: DurableObjectNamespace<import('${relative}').${o.className}>;`
+      `    ${o.binding}: DurableObjectNamespace<import('${objImport}').${o.className}>;`
     );
   }
   for (const q of queues) {
@@ -112,8 +116,8 @@ function generateBindingTypes(config: KumohConfig, root: string): void {
   if (config.durableObjects.length) {
     const props = config.durableObjects
       .map((o) => {
-        const relative = o.importPath.replace(root, '..').replace(/\.ts$/, '');
-        return `    ${o.camelName}: WrappedNamespace<import('${relative}').${o.className}>;`;
+        const objImport = toRelativeImport(o.importPath, root);
+        return `    ${o.camelName}: WrappedNamespace<import('${objImport}').${o.className}>;`;
       })
       .join('\n');
 
@@ -142,9 +146,7 @@ function generateRpcTypes(config: KumohConfig, root: string): void {
 
   for (const group of routeGroups) {
     for (const route of group.routes) {
-      const relative = route.importPath
-        .replace(root, '..')
-        .replace(/\.ts$/, '');
+      const routeImport = toRelativeImport(route.importPath, root);
 
       const raw =
         group.mountPath === '/'
@@ -162,7 +164,7 @@ function generateRpcTypes(config: KumohConfig, root: string): void {
         if (code.includes(`export const ${m}`)) {
           hasNamedExport = true;
           const alias = `_h${rpcIdx++}`;
-          rpcImports.push(`import { ${m} as ${alias} } from '${relative}';`);
+          rpcImports.push(`import { ${m} as ${alias} } from '${routeImport}';`);
           rpcChains.push(`.${m.toLowerCase()}('${fullPath}', ...${alias})`);
         }
       }
@@ -170,7 +172,7 @@ function generateRpcTypes(config: KumohConfig, root: string): void {
       // Falls back to .route() for Hono sub-app exports
       if (!hasNamedExport && code.includes('export default')) {
         const alias = `_h${rpcIdx++}`;
-        rpcImports.push(`import ${alias} from '${relative}';`);
+        rpcImports.push(`import ${alias} from '${routeImport}';`);
         rpcChains.push(`.route('${fullPath}', ${alias})`);
       }
     }
@@ -181,7 +183,7 @@ function generateRpcTypes(config: KumohConfig, root: string): void {
   }
 
   const schemaRef = existsSync(config.schemaPath)
-    ? config.schemaPath.replace(root, '..').replace(/\.ts$/, '')
+    ? toRelativeImport(config.schemaPath, root)
     : null;
   const rpcLines = [
     AUTO_GENERATED_COMMENT,
