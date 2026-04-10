@@ -5,8 +5,7 @@ import { join } from 'node:path';
 import { defineCommand } from 'citty';
 
 import { scanCrons, scanQueues } from '../server/scanner.ts';
-import type { MigrationJournal } from './config.ts';
-import { loadConfig, migrationsDir } from './config.ts';
+import { loadConfig, migrationsDir, root } from './config.ts';
 
 function row(label: string, value: string): void {
   console.log(`  ${label.padEnd(14)}${value}`);
@@ -43,14 +42,14 @@ export const status = defineCommand({
 
     row('R2', `${appName}-bucket`);
 
-    if (scanQueues('.', 'app/queues', appName).length) {
+    if (scanQueues(root, 'app/queues', appName).length) {
       row('Queue', `${appName}-queue`);
     }
 
     // Cron schedules
     if (existsSync('app/crons')) {
       try {
-        const crons = scanCrons('.', 'app/crons');
+        const crons = scanCrons(root, 'app/crons');
         if (crons.length) {
           const cronList = crons
             .map((c) => `${c.schedule} (${c.name})`)
@@ -68,16 +67,8 @@ export const status = defineCommand({
       const journalPath = join(dir, 'meta', '_journal.json');
       try {
         await access(journalPath);
-        const journal: MigrationJournal = JSON.parse(
-          await readFile(journalPath, 'utf-8')
-        );
-        const total = journal.entries.length;
-        const applied = deploy.migrations?.length ?? 0;
-        const pending = total - applied;
-        row(
-          'Migrations',
-          `${applied} applied${pending > 0 ? `, ${pending} pending` : ''}`
-        );
+        const journal = JSON.parse(await readFile(journalPath, 'utf-8'));
+        row('Migrations', `${journal.entries.length} total`);
       } catch {
         row('Migrations', 'none');
       }

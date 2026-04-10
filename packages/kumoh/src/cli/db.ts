@@ -1,10 +1,11 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir } from 'node:fs/promises';
 
 import { defineCommand } from 'citty';
 
-import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
-import { loadConfig, migrationsDir, root, schemaPath } from './config.ts';
+import { resolveConfig } from '../index.ts';
+import { generateTypes } from '../server/typegen.ts';
+import { loadConfig, migrationsDir, root } from './config.ts';
+import { applyMigrations } from './deploy.ts';
 import {
   cleanupTempConfig,
   requireLocalDb,
@@ -12,25 +13,7 @@ import {
   writeTempConfig,
 } from './drizzle.ts';
 import { log } from './log.ts';
-
-async function generateSchemaTypes(schemaFile: string): Promise<void> {
-  await mkdir(resolve(root, '.kumoh'), { recursive: true });
-
-  const relative = schemaFile.replace(root, '..').replace(/\.ts$/, '');
-
-  const content = [
-    AUTO_GENERATED_COMMENT,
-    "import type * as s from '" + relative + "';",
-    '',
-    "declare module 'kumoh/db' {",
-    '  export const schema: typeof s;',
-    '}',
-    '',
-  ].join('\n');
-
-  await writeFile(resolve(root, '.kumoh', 'kumoh.d.ts'), content);
-  log.ok('Generated .kumoh/kumoh.d.ts');
-}
+import { ensureLoggedIn } from './wrangler.ts';
 
 const generate = defineCommand({
   meta: {
@@ -43,7 +26,8 @@ const generate = defineCommand({
     const tempConfig = await writeTempConfig();
     await runDrizzleKit(`generate --config=${tempConfig}`);
     await cleanupTempConfig();
-    await generateSchemaTypes(schemaPath());
+    generateTypes(resolveConfig(root), root);
+    log.ok('Generated .kumoh/kumoh.d.ts');
   },
 });
 
@@ -52,8 +36,26 @@ const migrate = defineCommand({
     name: 'migrate',
     description: 'Push schema changes to local D1 database',
   },
-  async run() {
-    await loadConfig();
+  args: {
+    remote: {
+      type: 'boolean',
+      default: false,
+      description: 'Apply pending migrations to the remote D1 database',
+    },
+  },
+  async run(ctx) {
+    const config = await loadConfig();
+
+    if (ctx.args.remote) {
+      if (!config.state?.d1) {
+        console.error('No remote D1 found. Run kumoh deploy first.');
+        process.exit(1);
+      }
+      await ensureLoggedIn();
+      await applyMigrations(config);
+      return;
+    }
+
     const dbPath = await requireLocalDb();
     const tempConfig = await writeTempConfig({
       dbCredentials: { url: dbPath },
@@ -81,5 +83,5 @@ const studio = defineCommand({
 
 export const db = defineCommand({
   meta: { name: 'db', description: 'Database commands' },
-  subCommands: { generate, migrate, push: migrate, studio },
+  subCommands: { generate, migrate, studio },
 });

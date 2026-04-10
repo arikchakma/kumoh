@@ -4,6 +4,7 @@ import { basename, dirname, extname, isAbsolute, resolve } from 'node:path';
 import fg from 'fast-glob';
 import { parseSync } from 'oxc-parser';
 
+import { toCamelCase, toPascalCase, toUpperSnake } from '../lib/case.ts';
 import {
   dirToMountPath,
   fileToSubPath,
@@ -37,6 +38,15 @@ export type ScannedQueue = {
   camelName: string;
   binding: string;
   queueName: string;
+  importPath: string;
+};
+
+export type ScannedDurableObject = {
+  filePath: string;
+  name: string;
+  className: string;
+  camelName: string;
+  binding: string;
   importPath: string;
 };
 
@@ -239,12 +249,69 @@ export function scanEmail(root: string): string | null {
   return null;
 }
 
-function toCamelCase(str: string): string {
-  return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+/**
+ * Parses a TS/JS file and extracts exported class names.
+ * Used to validate that DO files export the expected class.
+ */
+function parseExportedClassNames(filePath: string): string[] {
+  const code = readFileSync(filePath, 'utf-8');
+  const { program } = parseSync(filePath, code);
+  const names: string[] = [];
+
+  for (const node of program.body) {
+    if (node.type !== 'ExportNamedDeclaration') {
+      continue;
+    }
+    const declaration = node.declaration;
+    if (declaration?.type === 'ClassDeclaration' && declaration.id) {
+      names.push(declaration.id.name);
+    }
+  }
+
+  return names;
 }
 
-function toUpperSnake(str: string): string {
-  return str.replace(/-/g, '_').toUpperCase();
+export function scanObjects(
+  root: string,
+  objectsDir: string
+): ScannedDurableObject[] {
+  const absDir = isAbsolute(objectsDir)
+    ? objectsDir
+    : resolve(root, objectsDir);
+  if (!existsSync(absDir)) {
+    return [];
+  }
+  const files = fg.sync('**/*.{ts,js}', {
+    cwd: absDir,
+    ignore: ['**/*.d.ts'],
+  });
+
+  return files
+    .filter((f) => !basename(f).startsWith('_'))
+    .map((file) => {
+      const filePath = resolve(absDir, file);
+      const name = basename(file, extname(file));
+      const className = toPascalCase(name);
+
+      const exported = parseExportedClassNames(filePath);
+      if (!exported.includes(className)) {
+        const found = exported.length
+          ? `found: ${exported.join(', ')}`
+          : 'no exported classes found';
+        throw new Error(
+          `[kumoh] app/objects/${file} must export class "${className}" (${found})`
+        );
+      }
+
+      return {
+        filePath,
+        name,
+        className,
+        camelName: toCamelCase(name),
+        binding: toUpperSnake(name),
+        importPath: filePath,
+      };
+    });
 }
 
 export function scanQueues(

@@ -1,7 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite';
+const OBJECTS_RUNTIME_PATH = fileURLToPath(
+  new URL('./objects-runtime.mjs', import.meta.url).href
+);
+
+import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite-plus';
 
 import {
   VIRTUAL_DB,
@@ -12,14 +16,16 @@ import {
   VIRTUAL_EMAIL,
   VIRTUAL_APP,
   VIRTUAL_RATE_LIMIT,
+  VIRTUAL_OBJECTS,
   VIRTUAL_ENTRY,
 } from '../constants.ts';
 import type { KumohConfig } from '../index.ts';
-import { AUTO_GENERATED_COMMENT } from '../lib/constants.ts';
 import { generateAiModule } from '../virtual/ai.ts';
+import { generateAppModule } from '../virtual/app.ts';
 import { generateDbModule } from '../virtual/db.ts';
 import { generateEmailModule } from '../virtual/email.ts';
 import { generateKvModule } from '../virtual/kv.ts';
+import { generateObjectsModule } from '../virtual/objects.ts';
 import { generateQueueModule } from '../virtual/queue.ts';
 import { generateRateLimitModule } from '../virtual/rate-limit.ts';
 import { generateStorageModule } from '../virtual/storage.ts';
@@ -31,6 +37,7 @@ import {
   scanEmail,
   scanQueues,
 } from './scanner.ts';
+import { generateTypes } from './typegen.ts';
 
 type ModuleGenerator = () => string;
 
@@ -47,198 +54,22 @@ function createGenerators(
       generateQueueModule(scanQueues(root, config.queuesDir!, appName)),
     [VIRTUAL_AI]: generateAiModule,
     [VIRTUAL_EMAIL]: generateEmailModule,
-    [VIRTUAL_APP]: () =>
-      [
-        "import { createFactory } from 'hono/factory';",
-        'export function defineApp(init) { return init; }',
-        'export const defineHandler = createFactory().createHandlers;',
-        'export function defineMiddleware(handler) { return handler; }',
-      ].join('\n'),
+    [VIRTUAL_APP]: generateAppModule,
     [VIRTUAL_RATE_LIMIT]: () => generateRateLimitModule(config.rateLimiters),
+    [VIRTUAL_OBJECTS]: () =>
+      generateObjectsModule(config.durableObjects, OBJECTS_RUNTIME_PATH),
   };
 }
 
-function generateTypes(config: KumohConfig, root: string): void {
-  const kumohDir = resolve(root, '.kumoh');
-  mkdirSync(kumohDir, { recursive: true });
-
-  const sections: string[] = [AUTO_GENERATED_COMMENT];
-
-  if (existsSync(config.schemaPath)) {
-    const relative = config.schemaPath.replace(root, '..').replace(/\.ts$/, '');
-    sections.push(
-      `import type * as s from '${relative}';`,
-      '',
-      "declare module 'kumoh/db' {",
-      '  export const schema: typeof s;',
-      '}'
-    );
-  }
-
-  const appName = config.appName ?? 'kumoh-app';
-  const queues = scanQueues(root, config.queuesDir!, appName);
-
-  if (queues.length) {
-    const imports = queues
-      .map((q) => {
-        const relative = q.importPath.replace(root, '..').replace(/\.ts$/, '');
-        return `import type handler_${q.camelName} from '${relative}';`;
-      })
-      .join('\n');
-
-    const props = queues
-      .map(
-        (q) =>
-          `    ${q.camelName}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
-      )
-      .join('\n');
-
-    sections.push(
-      imports,
-      '',
-      'type ExtractQueueMessage<T> = T extends ExportedHandlerQueueHandler<any, infer M> ? M : unknown;',
-      '',
-      "declare module 'kumoh/queue' {",
-      '  interface KumohQueues {',
-      props,
-      '  }',
-      '}'
-    );
-  }
-
-  const bindings: string[] = [];
-  if (existsSync(config.schemaPath)) {
-    bindings.push('    DB: D1Database;');
-  }
-  bindings.push('    KV: KVNamespace;');
-  bindings.push('    BUCKET: R2Bucket;');
-  bindings.push('    AI: Ai;');
-  bindings.push('    SEND_EMAIL: SendEmail;');
-  for (const l of config.rateLimiters) {
-    bindings.push(`    ${l.binding}: RateLimit;`);
-  }
-  for (const q of queues) {
-    bindings.push(
-      `    ${q.binding}: Queue<ExtractQueueMessage<typeof handler_${q.camelName}>>;`
-    );
-  }
-
-  sections.push(
-    "import type { Context, Hono, Next } from 'hono';",
-    '',
-    'type KumohBindings = {',
-    ...bindings,
-    '};',
-    '',
-    'type KumohEnv = { Bindings: KumohBindings };',
-    '',
-    "import type { CreateHandlersInterface } from 'hono/factory';",
-    '',
-    "declare module 'kumoh/app' {",
-    '  export function defineApp(',
-    '    init: (app: Hono<KumohEnv>) => void',
-    '  ): (app: Hono<KumohEnv>) => void;',
-    '  export const defineHandler: CreateHandlersInterface<KumohEnv, any>;',
-    '  export function defineMiddleware(',
-    '    handler: (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>',
-    '  ): (c: Context<KumohEnv>, next: Next) => Response | Promise<Response | void>;',
-    '}'
-  );
-
-  sections.push(
-    '',
-    "declare module 'kumoh/email' {",
-    '  export const email: SendEmail;',
-    '  export function defineEmail<Env = unknown>(',
-    '    handler: EmailExportedHandler<Env>',
-    '  ): EmailExportedHandler<Env>;',
-    '}'
-  );
-
-  if (config.rateLimiters.length) {
-    const props = config.rateLimiters
-      .map((l) => `    ${l.camelName}: RateLimit;`)
-      .join('\n');
-
-    sections.push(
-      '',
-      "declare module 'kumoh/rate-limit' {",
-      '  interface KumohRateLimiters {',
-      props,
-      '  }',
-      '}'
-    );
-  }
-
-  writeFileSync(resolve(kumohDir, 'kumoh.d.ts'), sections.join('\n') + '\n');
-
-  // Generate RPC type file using Hono's native type chain.
-  // We scan each route file with oxc to find which methods are exported,
-  // then generate a .get()/.post() chain that Hono types naturally.
-  const routeGroups = groupRoutesByDirectory(root, config.routesDir!);
-  const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
-  const rpcImports: string[] = [];
-  const rpcChains: string[] = [];
-  let rpcIdx = 0;
-
-  for (const group of routeGroups) {
-    for (const route of group.routes) {
-      const relative = route.importPath
-        .replace(root, '..')
-        .replace(/\.ts$/, '');
-
-      const raw =
-        group.mountPath === '/'
-          ? route.subPath
-          : group.mountPath + route.subPath;
-      const fullPath =
-        raw.endsWith('/') && raw !== '/' ? raw.slice(0, -1) : raw;
-
-      // We check source text instead of AST because we only need to know
-      // which HTTP methods are exported, not parse the full module
-      const code = readFileSync(route.importPath, 'utf-8');
-      let hasNamedExport = false;
-
-      for (const m of METHODS) {
-        if (code.includes(`export const ${m}`)) {
-          hasNamedExport = true;
-          const alias = `_h${rpcIdx++}`;
-          rpcImports.push(`import { ${m} as ${alias} } from '${relative}';`);
-          rpcChains.push(`.${m.toLowerCase()}('${fullPath}', ...${alias})`);
-        }
-      }
-
-      // Falls back to .route() for Hono sub-app exports
-      if (!hasNamedExport && code.includes('export default')) {
-        const alias = `_h${rpcIdx++}`;
-        rpcImports.push(`import ${alias} from '${relative}';`);
-        rpcChains.push(`.route('${fullPath}', ${alias})`);
-      }
-    }
-  }
-
-  if (rpcChains.length) {
-    const schemaRef = existsSync(config.schemaPath)
-      ? config.schemaPath.replace(root, '..').replace(/\.ts$/, '')
-      : null;
-    const rpcLines = [AUTO_GENERATED_COMMENT, "import { Hono } from 'hono';"];
-    if (schemaRef) {
-      rpcLines.push(
-        `import type * as _kumohSchema from '${schemaRef}';`,
-        '// @ts-ignore -- redeclares schema for cross-project type resolution',
-        "declare module 'kumoh/db' { export const schema: typeof _kumohSchema; }"
-      );
-    }
-    rpcLines.push(
-      ...rpcImports,
-      '',
-      'const _app = new Hono()',
-      ...rpcChains.map((c) => `  ${c}`),
-      '',
-      'export type AppType = typeof _app;'
-    );
-    writeFileSync(resolve(kumohDir, 'rpc.ts'), rpcLines.join('\n') + '\n');
-  }
+export function outputPlugin(envName: string): Plugin {
+  return {
+    name: 'kumoh:output',
+    config: () => ({
+      environments: {
+        [envName]: { build: { outDir: 'dist' } },
+      },
+    }),
+  } as Plugin;
 }
 
 export function virtualModules(config: KumohConfig): Plugin {
@@ -256,9 +87,12 @@ export function virtualModules(config: KumohConfig): Plugin {
     },
 
     configureServer(server: ViteDevServer) {
-      const dirs = [config.routesDir, config.cronsDir, config.queuesDir].filter(
-        Boolean
-      ) as string[];
+      const dirs = [
+        config.routesDir,
+        config.cronsDir,
+        config.queuesDir,
+        config.objectsDir,
+      ].filter(Boolean) as string[];
 
       for (const dir of dirs) {
         server.watcher.add(dir);
@@ -290,6 +124,10 @@ export function virtualModules(config: KumohConfig): Plugin {
         const queueMod = server.moduleGraph.getModuleById('\0kumoh/queue');
         if (queueMod) {
           server.moduleGraph.invalidateModule(queueMod);
+        }
+        const objectsMod = server.moduleGraph.getModuleById('\0kumoh/objects');
+        if (objectsMod) {
+          server.moduleGraph.invalidateModule(objectsMod);
         }
 
         server.ws.send({ type: 'full-reload' });
@@ -338,7 +176,8 @@ export function virtualModules(config: KumohConfig): Plugin {
           routeGroups,
           crons,
           queues,
-          emailEntry
+          emailEntry,
+          config.durableObjects
         );
       }
 

@@ -52,3 +52,13 @@ export const emails = sqliteTable('emails', {
   raw: text('raw'),
   ...defaultTimestamps,
 });
+
+export const chatMessages = sqliteTable('chat_messages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  roomId: text('room_id').notNull(),
+  username: text('username').notNull(),
+  text: text('text').notNull(),
+  createdAt: integer('created_at')
+    .notNull()
+    .default(sql`(unixepoch())`),
+});

@@ -8,6 +8,7 @@ import {
   Home,
   Mail,
   Shield,
+  Radio,
 } from 'lucide-react';
 import { Outlet } from 'react-router';
 
@@ -23,6 +24,7 @@ const nav = [
   { to: '/email', label: 'Email', icon: Mail },
   { to: '/rpc', label: 'RPC Client', icon: Plug },
   { to: '/rate-limit', label: 'Rate Limit', icon: Shield },
+  { to: '/objects', label: 'Durable Objects', icon: Radio },
 ];
 
 export default function Layout() {

@@ -60,6 +60,12 @@
       "types": "./virtual.d.ts",
       "import": "./dist/app.mjs"
     },
+    "./rate-limit": {
+      "types": "./virtual.d.ts"
+    },
+    "./objects": {
+      "types": "./virtual.d.ts"
+    },
     "./tsconfig": "./tsconfig.base.json"
   },
   "scripts": {
