@@ -128,10 +128,6 @@ export const destroy = defineCommand({
       await tryDelete(`Queue "${b.queueName}"`, () => deleteWorkerQueue(b));
     }
 
-    await tryDelete(`Worker "${appName}"`, () =>
-      wrangler(`delete --name ${appName} --force`)
-    );
-
     await tryDelete(`R2 bucket "${appName}-bucket"`, () =>
       wrangler(`r2 bucket delete ${appName}-bucket`)
     );
@@ -147,6 +143,10 @@ export const destroy = defineCommand({
         wrangler(`d1 delete ${appName}-db -y`)
       );
     }
+
+    await tryDelete(`Worker "${appName}"`, () =>
+      wrangler(`delete --name ${appName} --force`)
+    );
 
     delete config.state;
     await saveConfig(config);
