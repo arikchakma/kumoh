@@ -117,13 +117,19 @@ export const destroy = defineCommand({
 
     log.step('Destroying resources...');
 
-    // Must remove consumer bindings before deleting either the worker or the queue
+    // 1. Remove queue consumer bindings (must go first — blocks worker deletion)
     for (const b of boundQueues) {
       await tryDelete(`Queue consumer "${b.queueName}"`, () =>
         removeQueueConsumer(b)
       );
     }
 
+    // 2. Delete worker (must go after consumers, before queues)
+    await tryDelete(`Worker "${appName}"`, () =>
+      wrangler(`delete --name ${appName} --force`)
+    );
+
+    // 3. Delete queues, storage, and databases
     for (const b of boundQueues) {
       await tryDelete(`Queue "${b.queueName}"`, () => deleteWorkerQueue(b));
     }
@@ -143,10 +149,6 @@ export const destroy = defineCommand({
         wrangler(`d1 delete ${appName}-db -y`)
       );
     }
-
-    await tryDelete(`Worker "${appName}"`, () =>
-      wrangler(`delete --name ${appName} --force`)
-    );
 
     delete config.state;
     await saveConfig(config);
