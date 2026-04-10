@@ -7,7 +7,7 @@ import { defineCommand } from 'citty';
 
 import { scanObjects, scanQueues } from '../server/scanner.ts';
 import type { DeployState, KumohJson } from './config.ts';
-import { loadConfig, migrationsDir, root, saveConfig } from './config.ts';
+import { loadConfig, root, saveConfig } from './config.ts';
 import { buildDoMigrations } from './do-migrations.ts';
 import { log } from './log.ts';
 import { confirm, prompt } from './prompt.ts';
@@ -67,8 +67,9 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
 
 export async function applyMigrations(config: KumohJson): Promise<void> {
   const dbName = `${config.name ?? 'kumoh-app'}-db`;
+  const wranglerConfig = resolve(root, 'dist', 'wrangler.json');
   await wranglerExec(
-    `d1 migrations apply ${dbName} --remote --migrations-dir ${migrationsDir()}`
+    `d1 migrations apply ${dbName} --remote --config ${wranglerConfig}`
   );
 }
 
