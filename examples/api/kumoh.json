@@ -19,6 +19,12 @@
   "state": {
     "d1": "370161c3-fee8-4415-88de-33cc3a4070ec",
     "kv": "2b95b2123bc3447ca5baa6349b2892b4",
-    "domain": "api.kumoh.dev"
+    "domain": "api.kumoh.dev",
+    "migrations": [
+      {
+        "tag": "v1",
+        "new_classes": ["ChatRoom"]
+      }
+    ]
   }
 }
