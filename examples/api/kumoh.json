@@ -18,9 +18,9 @@
     }
   ],
   "state": {
-    "domain": "api.kumoh.dev",
     "d1": "46637393-933c-4a87-abf4-edb679fa7a1a",
     "kv": "79f376e7a934458094e3d8409a50a3e9",
+    "domain": "api.kumoh.dev",
     "migrations": [
       {
         "tag": "v1",
