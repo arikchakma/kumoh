@@ -111,7 +111,7 @@ export class ChatRoom extends DurableObject<KumohBindings> {
   async webSocketClose(ws: WebSocket): Promise<void> {
     ws.close();
     const count = this.ctx.getWebSockets().length;
-    this.broadcast({ type: 'count', count });
+    this.broadcast({ type: 'count', count }, ws);
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
