@@ -50,7 +50,7 @@ async function patchWranglerConfig(state: DeployState): Promise<void> {
     config.migrations = state.migrations.map((entry) => {
       const m: Record<string, unknown> = { tag: entry.tag };
       if (entry.new_classes?.length) {
-        m.new_classes = entry.new_classes;
+        m.new_sqlite_classes = entry.new_classes;
       }
       if (entry.deleted_classes?.length) {
         m.deleted_classes = entry.deleted_classes;
