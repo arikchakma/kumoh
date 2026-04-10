@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/kumoh/kumoh.schema.json",
   "name": "kumoh-api",
+  "compatibilityDate": "2026-04-10",
   "email": {
     "domain": "kumo.ooo"
   },
@@ -17,9 +18,8 @@
     }
   ],
   "state": {
-    "domain": "api.kumoh.dev",
-    "d1": "370161c3-fee8-4415-88de-33cc3a4070ec",
-    "kv": "2b95b2123bc3447ca5baa6349b2892b4",
+    "d1": "46637393-933c-4a87-abf4-edb679fa7a1a",
+    "kv": "79f376e7a934458094e3d8409a50a3e9",
     "migrations": [
       {
         "tag": "v1",
